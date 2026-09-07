@@ -1,0 +1,3 @@
+Second sample file in the dataset.
+Different content means a completely different SHA-256 hash.
+Even changing one character would produce a wildly different digest.
