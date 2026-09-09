@@ -1,0 +1,3 @@
+# Prevent git from converting line endings in the sample data files.
+# This ensures the same SHA-256 hashes on both Linux and Windows.
+data/** binary
