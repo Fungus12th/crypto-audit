@@ -1,145 +1,84 @@
-# Cryptographic Audit for AI Models
+# crypto-audit
 
-A two-layer system that cryptographically audits AI training datasets:
+Cryptographic auditing system for AI training datasets. Uses Merkle trees to fingerprint dataset files and stores the root hash on-chain via an Ethereum smart contract — so any tampering is immediately detectable.
 
-1. **Python Merkle Engine** — Hashes every file in a dataset with SHA-256, builds a Merkle tree, and can generate/verify proofs for individual files.
-2. **Solidity Smart Contract** — Stores Merkle roots on-chain with metadata (version, creator, timestamp) for tamper-proof audit trails.
+## Tech Stack
 
-> **Note:** This is the CLI-only version (no web UI). Everything runs in the terminal.
+- **Python** — SHA-256 hashing, Merkle tree construction, proof generation/verification
+- **Solidity** — `AuditRegistry` smart contract for on-chain root storage
+- **Hardhat** — Local Ethereum development and testing
+- **web3.py** — Python-to-blockchain bridge
 
----
+## Project Structure
 
-## Prerequisites
-
-- **Python 3.8+**
-- **Node.js 18+** and **npm**
-- **pip** (Python package manager)
-
----
+```
+contracts/
+  AuditRegistry.sol        # smart contract
+python/
+  merkle.py                # merkle tree implementation
+  audit.py                 # CLI for hashing, proving, verifying
+  submit_root.py           # submits merkle root to blockchain
+  read_blockchain.py       # reads stored records from chain
+  tamper_demo.py           # demo: flip a byte, detect tampering
+scripts/
+  deploy.js                # contract deployment script
+test/
+  AuditRegistry.test.js    # contract unit tests
+data/                      # sample dataset files
+```
 
 ## Setup
 
-### 1. Install Node dependencies (Hardhat + toolbox)
+**Prerequisites:** Python 3.8+, Node.js 18+
 
 ```bash
-cd crypto-audit
 npm install
-```
-
-### 2. Install Python dependencies (web3.py)
-
-```bash
 pip install -r requirements.txt
-```
-
-### 3. Compile the Solidity contract
-
-```bash
 npx hardhat compile
 ```
 
----
+## Usage
 
-## Run Order (Full Demo)
-
-You need **two terminal windows** for the blockchain parts.
-
-### Terminal 1 — Start the local blockchain
+Start the local blockchain (keep this running):
 
 ```bash
-cd crypto-audit
 npx hardhat node
 ```
 
-Leave this running. It starts a local Ethereum node at `http://127.0.0.1:8545` with 20 pre-funded test accounts.
-
-### Terminal 2 — Everything else
-
-#### Step 1: Deploy the smart contract
+In a second terminal:
 
 ```bash
+# deploy the contract
 npx hardhat run scripts/deploy.js --network localhost
-```
 
-You should see:
-```
-✅ AuditRegistry deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-📄 Contract address saved to: deployed_address.json
-```
-
-#### Step 2: Hash the dataset
-
-```bash
+# hash a dataset and get the merkle root
 python3 python/audit.py hash-dataset ./data
-```
 
-You can also hash a custom folder:
-
-```bash
-python3 python/audit.py hash-dataset ./my_photos
-```
-
-This prints every file's SHA-256 hash and the final Merkle root.
-
-#### Step 3: Generate a Merkle proof
-
-```bash
+# generate a merkle proof for one file
 python3 python/audit.py prove ./data/file1.txt --dataset ./data
-```
 
-For a custom folder:
+# verify a file against a known root
+python3 python/audit.py verify ./data/file1.txt --dataset ./data --root <root-hash>
 
-```bash
-python3 python/audit.py prove ./my_photos/photo.jpg --dataset ./my_photos
-```
-
-Shows the proof path (sibling hashes + directions) needed to reconstruct the root from just that file.
-
-#### Step 4: Verify a file against the root
-
-Copy the Merkle root from Step 2 and run:
-
-```bash
-python3 python/audit.py verify ./data/file1.txt --dataset ./data --root <paste-root-here>
-```
-
-For a custom folder:
-
-```bash
-python3 python/audit.py verify ./my_photos/photo.jpg --dataset ./my_photos --root <paste-root-here>
-```
-
-Should print `✅ PASS`.
-
-#### Step 5: Submit the root to the blockchain
-
-```bash
+# submit the root to the blockchain
 python3 python/submit_root.py
-```
 
-You can also specify a custom dataset folder:
-
-```bash
-python3 python/submit_root.py ./my_photos
-```
-
-This hashes the dataset, calls `submitRoot()` on the contract, reads it back with `getRoot()`, and confirms the on-chain root matches the local root.
-
-#### Step 6: Read the blockchain
-
-```bash
+# view all stored audit records
 python3 python/read_blockchain.py
-```
 
-View all stored audit records on-chain.
-
-#### Step 7: Tamper detection demo
-
-```bash
+# run the tamper detection demo
 python3 python/tamper_demo.py
 ```
 
-This flips one byte in `file1.txt`, recomputes the root, shows the mismatch (`🚨 TAMPER DETECTED!`), and restores the file.
+Works with any folder — just pass the path:
 
----
+```bash
+python3 python/audit.py hash-dataset ./my_photos
+python3 python/submit_root.py ./my_photos
+```
 
+## Testing
+
+```bash
+npx hardhat test
+```
