@@ -73,22 +73,40 @@ You should see:
 python3 python/audit.py hash-dataset ./data
 ```
 
+You can also hash a custom folder:
+
+```bash
+python3 python/audit.py hash-dataset ./my_photos
+```
+
 This prints every file's SHA-256 hash and the final Merkle root.
 
 #### Step 3: Generate a Merkle proof
 
 ```bash
-python3 python/audit.py prove ./data/file1.txt
+python3 python/audit.py prove ./data/file1.txt --dataset ./data
 ```
 
-Shows the proof path (sibling hashes + directions) needed to reconstruct the root from just file1.txt.
+For a custom folder:
+
+```bash
+python3 python/audit.py prove ./my_photos/photo.jpg --dataset ./my_photos
+```
+
+Shows the proof path (sibling hashes + directions) needed to reconstruct the root from just that file.
 
 #### Step 4: Verify a file against the root
 
 Copy the Merkle root from Step 2 and run:
 
 ```bash
-python3 python/audit.py verify ./data/file1.txt --root <paste-root-here>
+python3 python/audit.py verify ./data/file1.txt --dataset ./data --root <paste-root-here>
+```
+
+For a custom folder:
+
+```bash
+python3 python/audit.py verify ./my_photos/photo.jpg --dataset ./my_photos --root <paste-root-here>
 ```
 
 Should print `✅ PASS`.
@@ -99,9 +117,23 @@ Should print `✅ PASS`.
 python3 python/submit_root.py
 ```
 
+You can also specify a custom dataset folder:
+
+```bash
+python3 python/submit_root.py ./my_photos
+```
+
 This hashes the dataset, calls `submitRoot()` on the contract, reads it back with `getRoot()`, and confirms the on-chain root matches the local root.
 
-#### Step 6: Tamper detection demo
+#### Step 6: Read the blockchain
+
+```bash
+python3 python/read_blockchain.py
+```
+
+View all stored audit records on-chain.
+
+#### Step 7: Tamper detection demo
 
 ```bash
 python3 python/tamper_demo.py

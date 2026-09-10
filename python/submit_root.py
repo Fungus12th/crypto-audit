@@ -29,7 +29,12 @@ def main():
     # STEP 1: Compute the Merkle root from the local dataset
     # ------------------------------------------------------------------
     project_root = os.path.join(os.path.dirname(__file__), "..")
-    data_folder = os.path.join(project_root, "data")
+
+    # Accept a folder path as an optional argument, default to "data"
+    if len(sys.argv) > 1:
+        data_folder = sys.argv[1]
+    else:
+        data_folder = os.path.join(project_root, "data")
 
     print("\n📂 Hashing dataset...")
     file_hashes = hash_dataset(data_folder)
