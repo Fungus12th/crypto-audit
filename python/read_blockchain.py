@@ -37,35 +37,33 @@ def main():
 
     print(f"Reading records from {contract_address}...\n")
 
-    record_id = 0
-    found_any = False
+    count = contract.functions.getRecordCount().call()
 
-    while True:
-        try:
-            result = contract.functions.getRoot(record_id).call()
-            found_any = True
-
-            root_hex = result[0].hex()
-            version = result[1]
-            creator = result[2]
-            timestamp = result[3]
-
-            print(f"Record #{record_id}")
-            print(f"  Merkle Root:  {root_hex}")
-            print(f"  Version:      {version}")
-            print(f"  Creator:      {creator}")
-            print(f"  Timestamp:    {timestamp}\n")
-
-            record_id += 1
-        except Exception:
-            # End of records array
-            break
-
-    if not found_any:
+    if count == 0:
         print("No records found. Submit a root first with:")
         print("python python/submit_root.py")
-    else:
-        print(f"Found {record_id} record(s) on the blockchain.")
+        return
+
+    for record_id in range(count):
+        result = contract.functions.getRecord(record_id).call()
+
+        root_hex = result[0].hex()
+        version = result[1]
+        creator = result[2]
+        notes = result[3]
+        submitted_by = result[4]
+        timestamp = result[5]
+
+        print(f"Record #{record_id}")
+        print(f"  Merkle Root:   {root_hex}")
+        print(f"  Version:       {version}")
+        print(f"  Creator:       {creator}")
+        if notes:
+            print(f"  Notes:         {notes}")
+        print(f"  Submitted By:  {submitted_by}")
+        print(f"  Timestamp:     {timestamp}\n")
+
+    print(f"Found {count} record(s) on the blockchain.")
 
 
 if __name__ == "__main__":
