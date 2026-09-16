@@ -1,3 +1,0 @@
-Third and final sample file.
-With three leaves, the Merkle tree duplicates the last one to make four.
-This padding behavior is standard in Merkle tree implementations.

@@ -19,12 +19,17 @@ python/
   audit.py                 # CLI for hashing, proving, verifying
   submit_root.py           # submits merkle root to blockchain
   read_blockchain.py       # reads stored records from chain
-  tamper_demo.py           # demo: flip a byte, detect tampering
 scripts/
   deploy.js                # contract deployment script
 test/
   AuditRegistry.test.js    # contract unit tests
 data/                      # sample dataset files
+  em-commands
+  emergency
+  tokens
+  weak-points
+.notes/
+  VIVA_NOTES.md            # viva prep notes
 ```
 
 ## Setup
@@ -33,48 +38,82 @@ data/                      # sample dataset files
 
 ```bash
 npm install
+```
+
+```bash
 pip install -r requirements.txt
+```
+
+```bash
 npx hardhat compile
 ```
 
 ## Usage
 
-Start the local blockchain (keep this running):
+Start the local blockchain (keep this running in its own terminal):
 
 ```bash
 npx hardhat node
 ```
 
-In a second terminal:
+In a second terminal, deploy the contract:
 
 ```bash
-# deploy the contract
 npx hardhat run scripts/deploy.js --network localhost
+```
 
-# hash a dataset and get the merkle root
+Hash a dataset and get the Merkle root:
+
+```bash
 python3 python/audit.py hash-dataset ./data
+```
 
-# generate a merkle proof for one file
-python3 python/audit.py prove ./data/file1.txt --dataset ./data
+Generate a Merkle proof for one file:
 
-# verify a file against a known root
-python3 python/audit.py verify ./data/file1.txt --dataset ./data --root <root-hash>
+```bash
+python3 python/audit.py prove ./data/example.txt --dataset ./data
+```
 
-# submit the root to the blockchain
+Verify a file against a known root:
+
+```bash
+python3 python/audit.py verify ./data/example.txt --dataset ./data --root <root-hash>
+```
+
+Submit the root to the blockchain:
+
+```bash
 python3 python/submit_root.py
+```
 
-# view all stored audit records
+You can also specify a custom version and creator:
+
+```bash
+python3 python/submit_root.py --version v2.0 --creator your-name
+```
+
+View all stored audit records:
+
+```bash
 python3 python/read_blockchain.py
-
-# run the tamper detection demo
-python3 python/tamper_demo.py
 ```
 
 Works with any folder — just pass the path:
 
 ```bash
 python3 python/audit.py hash-dataset ./my_photos
+```
+
+```bash
 python3 python/submit_root.py ./my_photos
+```
+
+## Switching Accounts
+
+The local Hardhat node provides 20 test accounts, each with 10,000 ETH. By default, Account #0 is used. To use a different account:
+
+```bash
+python3 python/submit_root.py --account 1
 ```
 
 ## Testing

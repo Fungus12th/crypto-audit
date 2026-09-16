@@ -1,3 +1,0 @@
-This is the first sample file for the AI training dataset audit demo.
-It contains some placeholder text that represents training data.
-The SHA-256 hash of this file will become a leaf in our Merkle tree.

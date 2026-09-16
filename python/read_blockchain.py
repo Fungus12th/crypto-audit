@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import json
 import os
 import sys
@@ -61,7 +62,7 @@ def main():
         if notes:
             print(f"  Notes:         {notes}")
         print(f"  Submitted By:  {submitted_by}")
-        print(f"  Timestamp:     {timestamp}\n")
+        print(f"  Timestamp:     {datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n")
 
     print(f"Found {count} record(s) on the blockchain.")
 
