@@ -24,10 +24,7 @@ scripts/
 test/
   AuditRegistry.test.js    # contract unit tests
 data/                      # sample dataset files
-  em-commands
-  emergency
-  tokens
-  weak-points
+  ..
 .notes/
   VIVA_NOTES.md            # viva prep notes
 ```
