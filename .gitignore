@@ -17,3 +17,8 @@ __pycache__/
 
 # Personal notes (not for GitHub)
 .notes/
+
+# Runtime uploads and dataset cache
+uploads/
+dataset_registry.json
+*.log

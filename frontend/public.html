@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Public Merkle Root audit ledger and decentralized storage explorer">
+  <title>Public Explorer | Merkle Root</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page public-page">
+  <header class="site-nav"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">♧</span><span>Merkle <strong>Root</strong></span></a><nav class="nav-links" aria-label="Primary navigation"><a href="user.html">User Portal</a><a class="active" href="public.html">Public Explorer</a><a href="company.html">Company Portal</a><span class="network-status" data-health-status><span class="status-dot"></span><span>Checking network</span></span></nav></header>
+  <main class="container page-content">
+    <section class="page-intro explorer-intro"><div><p class="eyebrow"><span class="eyebrow-line"></span>PUBLIC EXPLORER / DECENTRALIZED STORAGE</p><h1>Trust, in the <em>open.</em></h1><p>Transparent cryptographic ledger and active Merkle trees.</p></div><button id="refresh-public" class="icon-button" type="button">↻ <span>Refresh explorer</span></button></section>
+    <section class="stats-strip"><div class="stat-card"><span>Total audits recorded</span><strong id="stat-audits">—</strong></div><div class="stat-card address-stat"><span>Contract address</span><button id="stat-address" class="mono-button" type="button" title="Copy contract address">Not deployed</button></div><div class="stat-card"><span>Current block height</span><strong id="stat-block">—</strong></div><div class="stat-card"><span>Network</span><strong id="stat-network">Hardhat Local / Ethereum</strong></div></section>
+    <section class="content-card explorer-card"><div class="card-header"><div><p class="card-kicker">01 / ACTIVE DATASET</p><h2>Decentralized Merkle Tree</h2></div><label class="select-label">Dataset version<select id="dataset-selector"><option value="">Loading datasets...</option></select></label></div><div id="tree-detail" class="tree-detail"><div class="table-empty">Loading the public tree...</div></div></section>
+    <section class="records-section"><div class="section-heading inline-heading"><div><p class="eyebrow">02 / IMMUTABLE LEDGER</p><h2>Public Audit Ledger</h2></div><span class="ledger-note">Select a record to inspect its tree</span></div><div class="table-shell"><table><thead><tr><th>ID</th><th>Merkle Root</th><th>Version</th><th>Creator</th><th>Submitted By</th><th>Timestamp</th></tr></thead><tbody id="public-records-body"><tr><td colspan="6" class="table-empty">Loading audit records...</td></tr></tbody></table></div></section>
+  </main>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div><script src="js/app.js"></script>
+</body>
+</html>

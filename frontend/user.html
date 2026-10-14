@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Portal | Merkle Root</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page user-page">
+  <header class="site-nav"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">♧</span><span>Merkle <strong>Root</strong></span></a><nav class="nav-links" aria-label="Primary navigation"><a class="active" href="user.html">User Portal</a><a href="public.html">Public Explorer</a><a href="company.html">Company Portal</a><span class="network-status" data-health-status><span class="status-dot"></span><span>Checking network</span></span></nav></header>
+  <main class="container page-content">
+    <section class="page-intro"><p class="eyebrow"><span class="eyebrow-line"></span>USER PORTAL / VERIFICATION</p><h1>Verify your <em>data.</em></h1><p>Confirm that a file belongs to a known dataset without exposing the dataset itself.</p></section>
+    <section class="content-card verify-card">
+      <div class="card-header"><div><p class="card-kicker">01 / FILE INCLUSION</p><h2>Verify Your Data</h2></div><span class="secure-label">◈ SHA-256 / MERKLE</span></div>
+      <form id="verify-form">
+        <div class="dropzone" data-dropzone data-single="true" tabindex="0"><input id="verify-file" name="file" type="file" hidden><span class="upload-icon">↑</span><strong>Drop your file here</strong><span>or <u>browse from your computer</u></span><small data-file-label>No file selected</small></div>
+        <div class="form-actions"><button class="button button-primary" type="submit" data-loading-label="Verifying…">Verify inclusion <span>→</span></button><span class="form-note">Your file is checked against all known audited datasets automatically.</span></div>
+      </form>
+      <div id="verify-result" class="result-panel" hidden></div>
+    </section>
+    <section class="how-section"><div class="section-heading"><p class="eyebrow">THE PROTOCOL</p><h2>How It Works</h2></div><div class="steps"><div class="step"><span>01</span><div><h3>Your file is hashed</h3><p>SHA-256 turns your file into a unique, fixed-length fingerprint.</p></div></div><div class="step"><span>02</span><div><h3>Hash is checked</h3><p>The fingerprint is located within the dataset's Merkle tree.</p></div></div><div class="step"><span>03</span><div><h3>Proof confirms inclusion</h3><p>A compact path mathematically validates the shared root.</p></div></div></div></section>
+  </main>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div><script src="js/app.js"></script>
+</body>
+</html>
