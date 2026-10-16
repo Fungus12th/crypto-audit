@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Dashboard | Merkle Root</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page user-page" data-require-auth="user">
+  <header class="site-nav">
+    <a class="brand" href="user-home.html"><span class="brand-mark" aria-hidden="true">♧</span><span>Merkle <strong>Root</strong></span></a>
+    <nav class="nav-links" aria-label="Primary navigation">
+      <a class="active" href="user-home.html">Dashboard</a>
+      <a href="user-verify.html">Verify Data</a>
+      <a href="public.html">Public Explorer</a>
+      <span class="network-status" data-health-status><span class="status-dot"></span><span>Checking</span></span>
+      <span class="nav-user"><span data-user-name>User</span><button id="logout-btn" class="logout-btn" type="button">Logout</button></span>
+    </nav>
+  </header>
+
+  <main class="container page-content">
+    <section class="welcome-hero">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-line"></span>USER DASHBOARD</p>
+        <h1>Welcome back, <em data-user-name>User</em></h1>
+      </div>
+    </section>
+
+    <div class="dashboard-cards">
+      <div class="dash-card">
+        <p class="card-kicker">IDENTITY</p>
+        <h3 data-user-name>User</h3>
+        <p class="dash-meta">Role: Individual Verifier</p>
+        <p class="dash-meta">Session: <span data-login-time>Active</span></p>
+      </div>
+
+      <div class="dash-card">
+        <p class="card-kicker">PUBLIC LEDGER</p>
+        <h3><span data-record-count>—</span> Audits Recorded</h3>
+        <p class="dash-meta">Block Height: <span data-block-number>—</span></p>
+        <p class="dash-meta">Network: Ethereum Local (Hardhat)</p>
+      </div>
+
+      <div class="dash-card action-card">
+        <p class="card-kicker">QUICK ACTION</p>
+        <h3>Verify Your Data</h3>
+        <p>Drop a file to mathematically confirm if it was included in an on-chain dataset.</p>
+        <a class="button button-primary" href="user-verify.html">Verify a File <span>→</span></a>
+      </div>
+    </div>
+
+    <section class="records-section">
+      <div class="section-heading inline-heading">
+        <div>
+          <p class="eyebrow">DECENTRALIZED REGISTRY</p>
+          <h2>Recent Public Audits</h2>
+        </div>
+        <a href="public.html" class="text-link">View all in Public Explorer →</a>
+      </div>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Root Hash</th>
+              <th>Version</th>
+              <th>Auditor / Creator</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="records-body">
+            <tr>
+              <td colspan="5" class="table-empty">Loading public audit records…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer container"><span>MERKLE ROOT / AUDIT SYSTEM</span><span>Built for verifiable data</span></footer>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <script src="js/app.js"></script>
+</body>
+</html>

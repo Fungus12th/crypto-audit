@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Dataset | Merkle Root</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page company-page" data-require-auth="company">
+  <header class="site-nav">
+    <a class="brand" href="company-home.html"><span class="brand-mark" aria-hidden="true">♧</span><span>Merkle <strong>Root</strong></span></a>
+    <nav class="nav-links" aria-label="Primary navigation">
+      <a href="company-home.html">Dashboard</a>
+      <a class="active" href="company-upload.html">Upload Dataset</a>
+      <a href="public.html">Public Explorer</a>
+      <span class="network-status" data-health-status><span class="status-dot"></span><span>Checking</span></span>
+      <span class="nav-user"><span data-user-name>Company</span><button id="logout-btn" class="logout-btn" type="button">Logout</button></span>
+    </nav>
+  </header>
+
+  <main class="container page-content">
+    <section class="page-intro company-intro">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-line"></span>COMPANY PORTAL / DATASET INGESTION</p>
+        <h1>Anchor your <em>integrity.</em></h1>
+        <p>Build an immutable cryptographic record of training datasets and anchor roots on-chain.</p>
+      </div>
+      <div class="audit-counter">
+        <span>ACTIVE PROTOCOL</span>
+        <strong>MRK / 01</strong>
+      </div>
+    </section>
+
+    <section class="content-card upload-card">
+      <div class="card-header">
+        <div>
+          <p class="card-kicker">01 / DATASET INGESTION</p>
+          <h2>Upload Dataset Files</h2>
+        </div>
+        <span class="secure-label">◈ DETERMINISTIC SHA-256</span>
+      </div>
+      <div class="dropzone" data-dropzone tabindex="0">
+        <input id="dataset-files" type="file" multiple hidden>
+        <span class="upload-icon">＋</span>
+        <strong>Drop dataset files here</strong>
+        <span>or <u>browse files from your computer</u></span>
+        <small data-file-label>Select multiple files to construct your Merkle tree</small>
+      </div>
+      <div id="dataset-result" hidden></div>
+    </section>
+
+    <section class="content-card submit-card">
+      <div class="card-header">
+        <div>
+          <p class="card-kicker">02 / IMMUTABLE RECORD</p>
+          <h2>Submit to Blockchain</h2>
+        </div>
+        <span class="chain-label">⛓ ETHEREUM ON-CHAIN</span>
+      </div>
+      <form id="submit-form">
+        <div class="form-grid three">
+          <label>Dataset Version
+            <input name="version" type="text" value="v1.0" required>
+          </label>
+          <label>Creator / Team
+            <input name="creator" type="text" value="Acme AI Labs" required>
+          </label>
+          <div class="root-submit-field">
+            <span>Root to Anchor</span>
+            <code id="submit-root-value">Upload a dataset first</code>
+          </div>
+        </div>
+        <button class="button button-primary" type="submit" data-loading-label="Submitting to Chain…">Anchor Root On-Chain <span>↗</span></button>
+      </form>
+      <div id="submit-result" class="result-panel" hidden></div>
+    </section>
+
+    <section class="records-section">
+      <div class="section-heading inline-heading">
+        <div>
+          <p class="eyebrow">03 / PUBLIC LEDGER</p>
+          <h2>Audit Records</h2>
+        </div>
+        <button id="refresh-records" class="icon-button" type="button" title="Refresh">↻ <span>Refresh</span></button>
+      </div>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Merkle Root</th>
+              <th>Version</th>
+              <th>Creator</th>
+              <th>Submitted By</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="records-body">
+            <tr>
+              <td colspan="6" class="table-empty">Loading records…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer container"><span>MERKLE ROOT / AUDIT SYSTEM</span><span>Built for verifiable data</span></footer>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <script src="js/app.js"></script>
+</body>
+</html>

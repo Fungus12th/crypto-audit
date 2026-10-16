@@ -100,6 +100,101 @@ def serve_static(filename):
     return send_from_directory(FRONTEND_DIR, filename)
 
 
+# ─── Auth: Demo accounts & login ─────────────────────────────────────
+
+import secrets
+import time
+
+# Demo accounts (in a real app this would be a database)
+DEMO_ACCOUNTS = {
+    "user": [
+        {"id": "USR-001", "username": "alice", "password": "alice123", "name": "Alice Nakamoto", "role": "user"},
+        {"id": "USR-002", "username": "bob", "password": "bob123", "name": "Bob Finney", "role": "user"},
+    ],
+    "company": [
+        {"id": "ORG-001", "username": "acme", "password": "acme123", "name": "Acme AI Labs", "role": "company"},
+        {"id": "ORG-002", "username": "nexus", "password": "nexus123", "name": "Nexus Data Corp", "role": "company"},
+    ],
+}
+
+# Active sessions: token -> {account_info, role, expires}
+active_sessions = {}
+
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    """Authenticate a user or company and return a session token."""
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No credentials provided"}), 400
+
+    username = data.get("username", "").strip().lower()
+    password = data.get("password", "").strip()
+    role = data.get("role", "").strip().lower()  # "user" or "company"
+
+    if not username or not password or role not in ("user", "company"):
+        return jsonify({"error": "Username, password, and role are required"}), 400
+
+    # Find matching account
+    account = None
+    for acc in DEMO_ACCOUNTS.get(role, []):
+        if acc["username"] == username and acc["password"] == password:
+            account = acc
+            break
+
+    if not account:
+        return jsonify({"error": "Invalid username or password"}), 401
+
+    # Generate session token
+    token = secrets.token_hex(32)
+    active_sessions[token] = {
+        "id": account["id"],
+        "username": account["username"],
+        "name": account["name"],
+        "role": account["role"],
+        "login_time": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "expires": time.time() + 86400,  # 24 hours
+    }
+
+    return jsonify({
+        "success": True,
+        "token": token,
+        "id": account["id"],
+        "name": account["name"],
+        "role": account["role"],
+    })
+
+
+@app.route("/api/session", methods=["GET"])
+def api_session():
+    """Validate a session token and return account info."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+    if not token or token not in active_sessions:
+        return jsonify({"authenticated": False}), 401
+
+    session = active_sessions[token]
+    if time.time() > session["expires"]:
+        del active_sessions[token]
+        return jsonify({"authenticated": False, "error": "Session expired"}), 401
+
+    return jsonify({
+        "authenticated": True,
+        "id": session["id"],
+        "name": session["name"],
+        "role": session["role"],
+        "login_time": session["login_time"],
+    })
+
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    """Invalidate a session token."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "").strip()
+    if token in active_sessions:
+        del active_sessions[token]
+    return jsonify({"success": True})
+
+
 # ─── API: Hash a dataset folder ──────────────────────────────────────
 
 @app.route("/api/hash-dataset", methods=["POST"])

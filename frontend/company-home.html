@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Company Dashboard | Merkle Root</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="portal-page company-page" data-require-auth="company">
+  <header class="site-nav">
+    <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">♧</span><span>Merkle <strong>Root</strong></span></a>
+    <nav class="nav-links">
+      <a class="active" href="company-home.html">Dashboard</a>
+      <a href="company-upload.html">Upload Dataset</a>
+      <a href="public.html">Public Explorer</a>
+      <span class="network-status" data-health-status><span class="status-dot"></span><span>Checking</span></span>
+      <span class="nav-user"><span data-user-name></span><button id="logout-btn" class="logout-btn">Logout</button></span>
+    </nav>
+  </header>
+
+  <main class="container page-content">
+    <section class="welcome-hero company-intro">
+      <div>
+        <p class="eyebrow"><span class="eyebrow-line"></span>COMPANY DASHBOARD</p>
+        <h1>Welcome back, <em data-user-name>Company</em></h1>
+      </div>
+    </section>
+
+    <div class="dashboard-cards">
+      <div class="dash-card">
+        <p class="card-kicker">ORGANIZATION</p>
+        <h3 data-user-name>—</h3>
+        <p class="dash-meta">Role: Dataset Auditor</p>
+        <p class="dash-meta">Session: <span data-login-time>—</span></p>
+      </div>
+      <div class="dash-card">
+        <p class="card-kicker">BLOCKCHAIN STATUS</p>
+        <h3><span class="status-dot-inline" data-chain-dot></span> <span data-chain-status>Checking…</span></h3>
+        <p class="dash-meta">Block: <span data-block-number>—</span></p>
+        <p class="dash-meta">Records: <span data-record-count>—</span></p>
+        <p class="dash-meta">Contract: <code data-contract-addr>—</code></p>
+      </div>
+      <div class="dash-card action-card">
+        <p class="card-kicker">NEW AUDIT</p>
+        <h3>Upload Dataset</h3>
+        <p>Hash files, build Merkle tree, and anchor on-chain.</p>
+        <a class="button button-primary" href="company-upload.html">Upload Dataset <span>→</span></a>
+      </div>
+    </div>
+
+    <section class="records-section">
+      <div class="section-heading inline-heading">
+        <div>
+          <p class="eyebrow">YOUR AUDIT RECORDS</p>
+          <h2>On-Chain Ledger</h2>
+        </div>
+        <button id="refresh-records" class="icon-button" type="button" title="Refresh">↻ <span>Refresh</span></button>
+      </div>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Root</th>
+              <th>Version</th>
+              <th>Creator</th>
+              <th>Submitted By</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="records-body">
+            <tr>
+              <td colspan="6" class="table-empty">Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer container"><span>MERKLE ROOT / AUDIT SYSTEM</span><span>Built for verifiable data</span></footer>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <script src="js/app.js"></script>
+</body>
+</html>
