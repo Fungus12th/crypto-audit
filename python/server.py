@@ -17,6 +17,15 @@ from flask_cors import CORS
 # Add the python directory to path so we can import merkle
 sys.path.insert(0, os.path.dirname(__file__))
 from merkle import hash_file, hash_dataset, build_tree, get_root, generate_proof, verify_proof
+from ipfs_pinata import (
+    pin_files_to_pinata,
+    pin_json_to_pinata,
+    is_pinata_configured,
+    test_pinata_auth,
+    get_pinata_gateway,
+    get_pinata_jwt,
+    ENV_FILE,
+)
 
 # ─── App setup ────────────────────────────────────────────────────────
 
@@ -28,6 +37,44 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=FRONTEND_DIR)
 CORS(app)
+
+
+def parse_notes_ipfs(notes_raw, root_hex=""):
+    """Extract IPFS CID, gateway URL, and manifest CID from contract notes string."""
+    if not notes_raw:
+        return "", "", ""
+    try:
+        data = json.loads(notes_raw)
+        cid = data.get("ipfs_cid", "")
+        manifest_cid = data.get("manifest_cid", "")
+        gw_domain = get_pinata_gateway()
+
+        # If local registry has the files for this root, link directly to the primary file
+        # to avoid Pinata's ERR_ID:00023 directory listing block on *.mypinata.cloud
+        reg = load_dataset_registry()
+        reg_item = reg.get(root_hex, {}) if root_hex else {}
+        files = reg_item.get("files", [])
+
+        if files:
+            first_fname = files[0].get("name", "")
+            # If notes already contain a direct file path, keep it
+            raw_gw = data.get("gateway", "")
+            if raw_gw and first_fname in raw_gw:
+                gateway = raw_gw
+            elif first_fname:
+                gateway = f"https://{gw_domain}/ipfs/{cid}/{first_fname}"
+            else:
+                gateway = f"https://{gw_domain}/ipfs/{cid}"
+        else:
+            gateway = data.get("gateway", "") or (f"https://{gw_domain}/ipfs/{cid}" if cid else "")
+
+        return cid, gateway, manifest_cid
+    except Exception:
+        if notes_raw.startswith("Qm") or notes_raw.startswith("bafy"):
+            gw_domain = get_pinata_gateway()
+            return notes_raw, f"https://{gw_domain}/ipfs/{notes_raw}", ""
+        return "", "", ""
+
 
 
 def load_dataset_registry():
@@ -255,6 +302,41 @@ def api_hash_dataset():
             "temp_id": os.path.basename(temp_dir),
         }
 
+        # ─── Hybrid Storage: Pin to Pinata IPFS ───────────────────────
+        saved_file_tuples = [(name, os.path.join(temp_dir, name)) for name in saved_files]
+        ipfs_files_res = pin_files_to_pinata(saved_file_tuples, folder_name=f"dataset_{root[:10]}")
+
+        file_urls = ipfs_files_res.get("file_urls", {})
+        result["files"] = [
+            {
+                "name": name,
+                "hash": h[:16] + "...",
+                "full_hash": h,
+                "ipfs_url": file_urls.get(name, f"{ipfs_files_res.get('gateway_url')}/{name}" if ipfs_files_res.get("is_directory") else ipfs_files_res.get("gateway_url")),
+            }
+            for name, h in file_hashes
+        ]
+
+        manifest_payload = {
+            "title": "Merkle Root Audit Manifest",
+            "merkle_root": root,
+            "tree_levels": len(tree),
+            "file_count": len(file_hashes),
+            "files": [
+                {"name": name, "sha256": h}
+                for name, h in file_hashes
+            ],
+            "ipfs_directory_cid": ipfs_files_res.get("cid"),
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        }
+        ipfs_manifest_res = pin_json_to_pinata(manifest_payload, name=f"manifest_{root[:10]}.json")
+
+        result["ipfs_cid"] = ipfs_files_res.get("cid")
+        result["ipfs_gateway"] = ipfs_files_res.get("gateway_url")
+        result["ipfs_mode"] = ipfs_files_res.get("mode")
+        result["manifest_cid"] = ipfs_manifest_res.get("cid")
+        result["manifest_gateway"] = ipfs_manifest_res.get("gateway_url")
+
         # Save to persistent dataset registry
         reg = load_dataset_registry()
         reg[root] = {
@@ -265,6 +347,10 @@ def api_hash_dataset():
             "file_count": len(file_hashes),
             "files": result["files"],
             "tree": tree_data,
+            "ipfs_cid": ipfs_files_res.get("cid"),
+            "ipfs_gateway": ipfs_files_res.get("gateway_url"),
+            "ipfs_mode": ipfs_files_res.get("mode"),
+            "manifest_cid": ipfs_manifest_res.get("cid"),
             "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         }
         save_dataset_registry(reg)
@@ -289,18 +375,34 @@ def api_verify():
 
     No manual root or session ID required — the blockchain is public.
     """
-    if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+    file_hash = None
+    input_file_name = None
+    temp_file_path = None
 
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "No file selected"}), 400
+    if "file" in request.files and request.files["file"].filename != "":
+        f = request.files["file"]
+        input_file_name = f.filename
+        temp_file = tempfile.NamedTemporaryFile(dir=UPLOAD_DIR, delete=False)
+        f.save(temp_file.name)
+        temp_file_path = temp_file.name
+        file_hash = hash_file(temp_file_path)
+    else:
+        # Check for JSON or form body with hash
+        data = request.get_json(silent=True) or request.form or {}
+        raw_hash = data.get("hash") or data.get("file_hash") or data.get("hash_input", "")
+        if raw_hash:
+            raw_hash = str(raw_hash).strip().lower()
+            if raw_hash.startswith("0x"):
+                raw_hash = raw_hash[2:]
+            if len(raw_hash) == 64 and all(c in "0123456789abcdef" for c in raw_hash):
+                file_hash = raw_hash
+                input_file_name = f"Hash: {file_hash[:16]}..."
+            else:
+                return jsonify({"error": "Invalid SHA-256 hash. Must be a 64-character hexadecimal string."}), 400
+        else:
+            return jsonify({"error": "Please select a file or provide a 64-character SHA-256 hash."}), 400
 
-    # Save the uploaded file temporarily
-    temp_file = tempfile.NamedTemporaryFile(dir=UPLOAD_DIR, delete=False)
     try:
-        file.save(temp_file.name)
-        file_hash = hash_file(temp_file.name)
 
         # Collect on-chain roots for cross-referencing
         on_chain_roots = {}
@@ -326,11 +428,15 @@ def api_verify():
                     for i in range(count):
                         result = contract.functions.getRecord(i).call()
                         root_hex = result[0].hex()
+                        cid, gateway, manifest_cid = parse_notes_ipfs(result[3], root_hex)
                         on_chain_roots[root_hex] = {
                             "id": i,
                             "version": result[1],
                             "creator": result[2],
                             "notes": result[3],
+                            "ipfs_cid": cid,
+                            "ipfs_gateway": gateway,
+                            "manifest_cid": manifest_cid,
                             "submitted_by": result[4],
                             "timestamp": datetime.fromtimestamp(
                                 result[5], tz=timezone.utc
@@ -368,6 +474,8 @@ def api_verify():
                         for idx, lvl in enumerate(tree)
                     ]
 
+                    cid = on_chain_roots.get(root_key, {}).get("ipfs_cid") or meta.get("ipfs_cid", "")
+                    gateway = on_chain_roots.get(root_key, {}).get("ipfs_gateway") or meta.get("ipfs_gateway", "")
                     match_info = {
                         "root": root_key,
                         "matched_filename": matched_filename,
@@ -379,6 +487,9 @@ def api_verify():
                         "on_chain": root_key in on_chain_roots,
                         "dataset_version": on_chain_roots.get(root_key, {}).get("version", meta.get("version", "v1.0")),
                         "dataset_creator": on_chain_roots.get(root_key, {}).get("creator", meta.get("creator", "Unknown")),
+                        "ipfs_cid": cid,
+                        "ipfs_gateway": gateway,
+                        "manifest_cid": meta.get("manifest_cid", ""),
                         "tree": tree_data,
                     }
                     if root_key in on_chain_roots:
@@ -425,6 +536,8 @@ def api_verify():
                         "leaf_index": leaf_index,
                         "dataset_files": len(file_hashes_list),
                         "on_chain": root in on_chain_roots,
+                        "ipfs_cid": on_chain_roots.get(root, {}).get("ipfs_cid", ""),
+                        "ipfs_gateway": on_chain_roots.get(root, {}).get("ipfs_gateway", ""),
                         "tree": tree_data,
                     }
                     if root in on_chain_roots:
@@ -439,12 +552,17 @@ def api_verify():
             on_chain_matches = [m for m in matches if m["on_chain"]]
             best = on_chain_matches[0] if on_chain_matches else matches[0]
 
+            gw_domain = get_pinata_gateway()
+            cid = best.get("ipfs_cid", "")
+            matched_filename = best.get("matched_filename") or input_file_name
+            file_ipfs_url = f"https://{gw_domain}/ipfs/{cid}/{matched_filename}" if cid and matched_filename else best.get("ipfs_gateway", "")
+
             return jsonify({
                 "verified": best["verified"],
                 "on_chain": best["on_chain"],
                 "file_hash": file_hash,
-                "file_name": file.filename,
-                "matched_name": best.get("matched_filename") or file.filename,
+                "file_name": input_file_name,
+                "matched_name": matched_filename,
                 "root": best["root"],
                 "proof_steps": best["proof_steps"],
                 "proof": best.get("proof", []),
@@ -452,15 +570,20 @@ def api_verify():
                 "dataset_files": best["dataset_files"],
                 "dataset_version": best.get("dataset_version", "v1.0"),
                 "dataset_creator": best.get("dataset_creator", "System Core"),
+                "ipfs_cid": cid,
+                "ipfs_url": file_ipfs_url,
+                "ipfs_gateway": file_ipfs_url,
+                "manifest_cid": best.get("manifest_cid", ""),
                 "record": best.get("record"),
                 "tree": best.get("tree"),
                 "total_matches": len(matches),
+                "unlocked_private_access": True,
                 "message": (
-                    "File is cryptographically verified and anchored on the blockchain!"
+                    "Cryptographic inclusion confirmed! Because you proved ownership of this record, your confidential decentralized IPFS file access has been unlocked."
                     if best["on_chain"] and best["verified"]
-                    else "File matches an audited dataset (pending on-chain anchoring)."
+                    else "Record matches an audited dataset (pending on-chain anchoring)."
                     if best["verified"]
-                    else "File found but verification failed"
+                    else "Record found but verification failed"
                 ),
             })
         else:
@@ -468,13 +591,17 @@ def api_verify():
                 "verified": False,
                 "on_chain": False,
                 "file_hash": file_hash,
-                "file_name": file.filename,
+                "file_name": input_file_name,
                 "total_matches": 0,
-                "message": "File not found in any audited dataset.",
+                "message": "Record not found in any audited on-chain dataset.",
             })
 
     finally:
-        os.unlink(temp_file.name)
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass
 
 
 # ─── API: Get blockchain records ──────────────────────────────────────
@@ -508,22 +635,45 @@ def api_records():
             abi=contract_abi,
         )
 
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
+        is_company = token in active_sessions and active_sessions[token].get("role") == "company"
+
+        reg = load_dataset_registry()
+        gw_domain = get_pinata_gateway()
         count = contract.functions.getRecordCount().call()
         records = []
 
         for i in range(count):
             result = contract.functions.getRecord(i).call()
-            records.append({
+            root_hex = result[0].hex()
+            reg_item = reg.get(root_hex, {})
+            files_list = reg_item.get("files", [])
+
+            rec = {
                 "id": i,
-                "root": result[0].hex(),
+                "root": root_hex,
                 "version": result[1],
                 "creator": result[2],
-                "notes": result[3],
                 "submitted_by": result[4],
                 "timestamp": datetime.fromtimestamp(
                     result[5], tz=timezone.utc
                 ).strftime("%Y-%m-%d %H:%M:%S UTC"),
-            })
+            }
+
+            if is_company:
+                cid, gateway, manifest_cid = parse_notes_ipfs(result[3], root_hex)
+                for f in files_list:
+                    if not f.get("ipfs_url") and cid:
+                        f["ipfs_url"] = f"https://{gw_domain}/ipfs/{cid}/{f['name']}"
+                rec["notes"] = result[3]
+                rec["ipfs_cid"] = cid
+                rec["ipfs_gateway"] = gateway
+                rec["manifest_cid"] = manifest_cid
+                rec["file_count"] = reg_item.get("file_count", len(files_list) or 1)
+                rec["files"] = files_list
+
+            records.append(rec)
 
         return jsonify({"records": records, "count": count})
 
@@ -537,7 +687,7 @@ def api_records():
 
 @app.route("/api/submit-root", methods=["POST"])
 def api_submit_root():
-    """Submit a Merkle root to the blockchain."""
+    """Submit a Merkle root to the blockchain with optional IPFS notes."""
     try:
         from web3 import Web3
 
@@ -581,14 +731,27 @@ def api_submit_root():
         if already_exists:
             return jsonify({"error": "Root already exists on-chain", "duplicate": True}), 409
 
-        tx_hash = contract.functions.submitRoot(
-            root_bytes, version, creator
+        # Attach IPFS hybrid storage metadata in notes
+        reg = load_dataset_registry()
+        reg_item = reg.get(root_hex, {})
+        ipfs_cid = data.get("ipfs_cid") or reg_item.get("ipfs_cid", "")
+        ipfs_gateway = data.get("ipfs_gateway") or reg_item.get("ipfs_gateway", "")
+        manifest_cid = reg_item.get("manifest_cid", "")
+
+        notes_payload = {
+            "ipfs_cid": ipfs_cid,
+            "gateway": ipfs_gateway or (f"https://gateway.pinata.cloud/ipfs/{ipfs_cid}" if ipfs_cid else ""),
+            "manifest_cid": manifest_cid,
+        }
+        notes_str = json.dumps(notes_payload) if ipfs_cid else data.get("notes", "")
+
+        tx_hash = contract.functions.submitRootWithNotes(
+            root_bytes, version, creator, notes_str
         ).transact({"from": account})
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
         # Update persistent registry
-        reg = load_dataset_registry()
         if root_hex in reg:
             reg[root_hex]["version"] = version
             reg[root_hex]["creator"] = creator
@@ -604,6 +767,8 @@ def api_submit_root():
             "root": root_hex,
             "version": version,
             "creator": creator,
+            "ipfs_cid": ipfs_cid,
+            "ipfs_gateway": notes_payload.get("gateway"),
         })
 
     except Exception as e:
@@ -644,18 +809,25 @@ def api_public_overview():
                     abi=contract_abi,
                 )
                 count = contract.functions.getRecordCount().call()
+                reg_all = load_dataset_registry()
+                gw_domain = get_pinata_gateway()
                 for i in range(count):
                     result = contract.functions.getRecord(i).call()
+                    root_hex = result[0].hex()
+                    reg_item = reg_all.get(root_hex, {})
+                    files_list = reg_item.get("files", [])
+
                     records.append({
                         "id": i,
-                        "root": result[0].hex(),
+                        "root": root_hex,
                         "version": result[1],
                         "creator": result[2],
-                        "notes": result[3],
+                        "file_count": reg_item.get("file_count", len(files_list) or 1),
                         "submitted_by": result[4],
                         "timestamp": datetime.fromtimestamp(
                             result[5], tz=timezone.utc
                         ).strftime("%Y-%m-%d %H:%M:%S UTC"),
+                        "privacy_status": "Confidential (Off-Chain)",
                     })
     except Exception as e:
         print(f"Notice: public overview blockchain query error: {e}")
@@ -664,19 +836,16 @@ def api_public_overview():
     reg = load_dataset_registry()
     latest_tree = None
     latest_root = None
-    latest_files = []
 
     if records:
         latest_root = records[-1]["root"]
         if latest_root in reg:
             latest_tree = reg[latest_root].get("tree")
-            latest_files = reg[latest_root].get("files", [])
     elif reg:
         # Fallback to newest item in registry
         latest_item = list(reg.values())[-1]
         latest_root = latest_item.get("root")
         latest_tree = latest_item.get("tree")
-        latest_files = latest_item.get("files", [])
 
     return jsonify({
         "blockchain_connected": connected,
@@ -687,7 +856,10 @@ def api_public_overview():
         "total_datasets": len(reg),
         "latest_root": latest_root,
         "latest_tree": latest_tree,
-        "latest_files": latest_files,
+        "latest_files": [],
+        "privacy_shield": True,
+        "ipfs_configured": is_pinata_configured(),
+        "ipfs_gateway": get_pinata_gateway(),
     })
 
 
@@ -698,14 +870,94 @@ def api_tree(root_hex):
     item = reg.get(root_hex)
     if not item:
         return jsonify({"error": "Dataset tree not found in registry"}), 404
+
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
+    is_company = token in active_sessions and active_sessions[token].get("role") == "company"
+
+    gw_domain = get_pinata_gateway()
+    cid = item.get("ipfs_cid", "")
+    files = item.get("files", [])
+    for f in files:
+        if not f.get("ipfs_url") and cid:
+            f["ipfs_url"] = f"https://{gw_domain}/ipfs/{cid}/{f['name']}"
+
     return jsonify({
         "root": item.get("root"),
         "version": item.get("version"),
         "creator": item.get("creator"),
         "file_count": item.get("file_count"),
-        "files": item.get("files", []),
+        "files": files if is_company else [],
         "tree": item.get("tree"),
+        "ipfs_cid": item.get("ipfs_cid") if is_company else None,
+        "ipfs_gateway": item.get("ipfs_gateway") if is_company else None,
+        "manifest_cid": item.get("manifest_cid") if is_company else None,
         "timestamp": item.get("timestamp"),
+        "privacy_status": "Confidential (Off-Chain)" if not is_company else "Admin Access",
+    })
+
+
+# ─── API: IPFS Status & Configuration ─────────────────────────────────
+
+@app.route("/api/ipfs-status", methods=["GET"])
+def api_ipfs_status():
+    """Returns Pinata IPFS integration status, auth status, gateway, and mode."""
+    auth_res = test_pinata_auth()
+    return jsonify({
+        "configured": is_pinata_configured(),
+        "mode": auth_res.get("mode"),
+        "authenticated": auth_res.get("authenticated"),
+        "message": auth_res.get("message"),
+        "gateway": get_pinata_gateway(),
+    })
+
+
+@app.route("/api/ipfs-config", methods=["POST"])
+def api_ipfs_config():
+    """Update Pinata JWT and Gateway in .env."""
+    data = request.get_json() or {}
+    jwt = data.get("jwt", "").strip()
+    gateway = data.get("gateway", "").strip() or "gateway.pinata.cloud"
+
+    if not jwt:
+        return jsonify({"error": "JWT cannot be empty"}), 400
+
+    lines = []
+    if os.path.isfile(ENV_FILE):
+        with open(ENV_FILE, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+    updated_jwt = False
+    updated_gw = False
+    new_lines = []
+    for line in lines:
+        if line.startswith("PINATA_JWT="):
+            new_lines.append(f'PINATA_JWT="{jwt}"\n')
+            updated_jwt = True
+        elif line.startswith("PINATA_GATEWAY="):
+            new_lines.append(f'PINATA_GATEWAY="{gateway}"\n')
+            updated_gw = True
+        else:
+            new_lines.append(line)
+
+    if not updated_jwt:
+        new_lines.append(f'PINATA_JWT="{jwt}"\n')
+    if not updated_gw:
+        new_lines.append(f'PINATA_GATEWAY="{gateway}"\n')
+
+    with open(ENV_FILE, "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+
+    os.environ["PINATA_JWT"] = jwt
+    os.environ["PINATA_GATEWAY"] = gateway
+
+    auth_res = test_pinata_auth()
+    return jsonify({
+        "success": True,
+        "authenticated": auth_res.get("authenticated"),
+        "mode": auth_res.get("mode"),
+        "message": auth_res.get("message"),
+        "gateway": gateway,
     })
 
 

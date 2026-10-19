@@ -22,3 +22,6 @@ __pycache__/
 uploads/
 dataset_registry.json
 *.log
+.env
+.env.*
+

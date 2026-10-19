@@ -39,7 +39,10 @@
           <p class="card-kicker">01 / DATASET INGESTION</p>
           <h2>Upload Dataset Files</h2>
         </div>
-        <span class="secure-label">◈ DETERMINISTIC SHA-256</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="secure-label">◈ DETERMINISTIC SHA-256</span>
+          <span class="ipfs-badge" data-ipfs-badge>IPFS: Checking…</span>
+        </div>
       </div>
       <div class="dropzone" data-dropzone tabindex="0">
         <input id="dataset-files" type="file" multiple hidden>
@@ -60,7 +63,7 @@
         <span class="chain-label">⛓ ETHEREUM ON-CHAIN</span>
       </div>
       <form id="submit-form">
-        <div class="form-grid three">
+        <div class="form-grid four">
           <label>Dataset Version
             <input name="version" type="text" value="v1.0" required>
           </label>
@@ -70,6 +73,10 @@
           <div class="root-submit-field">
             <span>Root to Anchor</span>
             <code id="submit-root-value">Upload a dataset first</code>
+          </div>
+          <div class="root-submit-field">
+            <span>IPFS Storage CID</span>
+            <code id="submit-ipfs-value">Pending upload</code>
           </div>
         </div>
         <button class="button button-primary" type="submit" data-loading-label="Submitting to Chain…">Anchor Root On-Chain <span>↗</span></button>
@@ -91,6 +98,7 @@
             <tr>
               <th>ID</th>
               <th>Merkle Root</th>
+              <th>IPFS Storage</th>
               <th>Version</th>
               <th>Creator</th>
               <th>Submitted By</th>
@@ -99,7 +107,7 @@
           </thead>
           <tbody id="records-body">
             <tr>
-              <td colspan="6" class="table-empty">Loading records…</td>
+              <td colspan="7" class="table-empty">Loading records…</td>
             </tr>
           </tbody>
         </table>

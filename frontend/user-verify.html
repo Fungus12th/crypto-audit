@@ -22,27 +22,47 @@
 
   <main class="container page-content">
     <section class="page-intro">
-      <p class="eyebrow"><span class="eyebrow-line"></span>USER PORTAL / VERIFICATION</p>
+      <p class="eyebrow"><span class="eyebrow-line"></span>USER PORTAL / ZERO-KNOWLEDGE VERIFICATION</p>
       <h1>Verify your <em>data.</em></h1>
-      <p>Confirm that a file belongs to a known dataset without exposing the dataset itself.</p>
+      <p>Confirm that your confidential file or hash is included in an on-chain audit without exposing patient/enterprise data to the public.</p>
     </section>
 
     <section class="content-card verify-card">
       <div class="card-header">
-        <div><p class="card-kicker">01 / FILE INCLUSION</p><h2>Verify Your Data</h2></div>
-        <span class="secure-label">◈ SHA-256 / MERKLE</span>
+        <div><p class="card-kicker">01 / CONFIDENTIAL INCLUSION PROOF</p><h2>Verify Your Record</h2></div>
+        <span class="secure-label">◈ PRIVACY-PRESERVING / MERKLE</span>
       </div>
+
+      <!-- Verification Input Mode Tabs -->
+      <div class="verify-tabs">
+        <button type="button" class="verify-tab active" data-verify-tab="file">📁 Upload File</button>
+        <button type="button" class="verify-tab" data-verify-tab="hash"># Enter SHA-256 Hash</button>
+      </div>
+
       <form id="verify-form">
-        <div class="dropzone" data-dropzone data-single="true" tabindex="0">
-          <input id="verify-file" name="file" type="file" hidden>
-          <span class="upload-icon">↑</span>
-          <strong>Drop your file here</strong>
-          <span>or <u>browse from your computer</u></span>
-          <small data-file-label>No file selected</small>
+        <!-- Mode 1: File Dropzone -->
+        <div id="dropzone-container">
+          <div class="dropzone" data-dropzone data-single="true" tabindex="0">
+            <input id="verify-file" name="file" type="file" hidden>
+            <span class="upload-icon">↑</span>
+            <strong>Drop your confidential file here</strong>
+            <span>or <u>browse from your device</u></span>
+            <small data-file-label>No file selected</small>
+          </div>
         </div>
-        <div class="form-actions">
-          <button class="button button-primary" type="submit" data-loading-label="Verifying…">Verify inclusion <span>→</span></button>
-          <span class="form-note">Your file is checked against all known audited datasets automatically.</span>
+
+        <!-- Mode 2: Direct Hash Input -->
+        <div id="hash-input-container" class="hash-input-panel" hidden>
+          <label for="verify-hash-input" class="select-label" style="display:block;margin-bottom:8px;">
+            <strong style="color:var(--forest);font-size:13px;">SHA-256 Fingerprint (64 characters):</strong>
+          </label>
+          <input type="text" id="verify-hash-input" name="hash_input" class="form-input mono" placeholder="e.g. d0b65fd68ee95b67bfcbd4bf78db35fbd731889a519391a95ac87ed280509364" maxlength="66" autocomplete="off" spellcheck="false" style="width:100%;padding:12px 14px;border-radius:6px;border:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--white);">
+          <span class="form-note" style="margin-top:8px;display:block;">If you don't want to upload the physical file, you can verify using only its cryptographic SHA-256 hash.</span>
+        </div>
+
+        <div class="form-actions" style="margin-top:16px;">
+          <button class="button button-primary" type="submit" data-loading-label="Verifying cryptographic proof…">Verify inclusion <span>→</span></button>
+          <span class="form-note">When verified, only you can unlock and view your corresponding IPFS decentralized storage link.</span>
         </div>
       </form>
       <div id="verify-result" class="result-panel" hidden></div>
