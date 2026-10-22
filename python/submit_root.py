@@ -45,6 +45,8 @@ def main():
     parser.add_argument("--version", default="v1.0", help="Dataset version label (default: v1.0)")
     parser.add_argument("--creator", default="demo-user", help="Creator name (default: demo-user)")
     parser.add_argument("--account", type=int, default=0, help="Account index to use (default: 0)")
+    parser.add_argument("--parent-root", default=None, help="Parent Merkle root to supersede (hex)")
+    parser.add_argument("--reason", default="Dataset version update / GDPR removal", help="Revocation reason for superseded root")
     args = parser.parse_args()
 
     project_root = os.path.join(os.path.dirname(__file__), "..")
@@ -103,13 +105,27 @@ def main():
     dataset_version = args.version
     creator = args.creator
 
-    print(f"\nSubmitting root to blockchain...")
-    print(f"Version: {dataset_version}")
-    print(f"Creator: {creator}")
+    if args.parent_root:
+        parent_hex = args.parent_root.strip().lower()
+        if parent_hex.startswith("0x"):
+            parent_hex = parent_hex[2:]
+        parent_bytes = bytes.fromhex(parent_hex)
+        print(f"\nSuperseding parent root {parent_hex} on blockchain...")
+        print(f"New Version: {dataset_version}")
+        print(f"Creator:     {creator}")
+        print(f"Reason:      {args.reason}")
 
-    tx_hash = contract.functions.submitRoot(
-        root_bytes32, dataset_version, creator
-    ).transact({"from": account})
+        tx_hash = contract.functions.supersedeRoot(
+            parent_bytes, root_bytes32, dataset_version, creator, "", args.reason
+        ).transact({"from": account})
+    else:
+        print(f"\nSubmitting root to blockchain...")
+        print(f"Version: {dataset_version}")
+        print(f"Creator: {creator}")
+
+        tx_hash = contract.functions.submitRoot(
+            root_bytes32, dataset_version, creator
+        ).transact({"from": account})
 
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     print(f"Transaction mined in block {receipt['blockNumber']}")

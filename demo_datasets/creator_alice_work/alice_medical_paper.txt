@@ -1,0 +1,8 @@
+TITLE: Novel Single-Cell RNA Biomarkers for Early Detection of Pancreatic Ductal Adenocarcinoma
+AUTHOR: Dr. Alice Nakamoto, Institute for Advanced Oncology (2026)
+COPYRIGHT: (C) 2026 Dr. Alice Nakamoto. All rights reserved. Commercial training prohibited without on-chain license.
+ABSTRACT:
+We identify a distinct 14-gene transcriptomic signature within CAFs (cancer-associated fibroblasts)
+that precedes radiographic tumor detection by an average of 4.2 months. Expression profiling across
+240 patient cohorts demonstrates sensitivity of 94.6% and specificity of 98.1%.
+SIGNATURE_HASH: 0x8821fa419ce74b910a284

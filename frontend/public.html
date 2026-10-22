@@ -12,10 +12,123 @@
   <header class="site-nav"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">♧</span><span>Merkle <strong>Root</strong></span></a><nav class="nav-links"><a href="public.html" class="active">Public Explorer</a><a href="index.html" class="text-link">Login →</a><span class="network-status" data-health-status><span class="status-dot"></span><span>Checking</span></span></nav></header>
   <main class="container page-content">
     <section class="page-intro explorer-intro"><div><p class="eyebrow"><span class="eyebrow-line"></span>PUBLIC EXPLORER / CRYPTOGRAPHIC AUDIT LEDGER</p><h1>Trust, in the <em>open.</em></h1><p>Transparent cryptographic ledger and active Merkle trees. Sensitive records remain private off-chain.</p></div><button id="refresh-public" class="icon-button" type="button">↻ <span>Refresh explorer</span></button></section>
+
+    <!-- Multi-Actor Web3 Wallet Bar -->
+    <div id="web3-wallet-bar" class="web3-wallet-bar">
+      <div class="wallet-bar-label"><span>🌐 Web3 Wallets:</span></div>
+      <div id="wallet-list" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">Loading wallets...</div>
+    </div>
     <section class="stats-strip"><div class="stat-card"><span>Total audits recorded</span><strong id="stat-audits">—</strong></div><div class="stat-card address-stat"><span>Contract address</span><button id="stat-address" class="mono-button" type="button" title="Copy contract address">Not deployed</button></div><div class="stat-card"><span>Current block height</span><strong id="stat-block">—</strong></div><div class="stat-card"><span>Storage Privacy</span><strong id="stat-ipfs">Confidential IPFS</strong></div><div class="stat-card"><span>Network</span><strong id="stat-network">Hardhat Local / Ethereum</strong></div></section>
-    <section class="content-card explorer-card"><div class="card-header"><div><p class="card-kicker">01 / ACTIVE DATASET</p><h2>Decentralized Merkle Tree</h2></div><label class="select-label">Dataset version<select id="dataset-selector"><option value="">Loading datasets...</option></select></label></div><div id="tree-detail" class="tree-detail"><div class="table-empty">Loading the public tree...</div></div></section>
-    <section class="records-section"><div class="section-heading inline-heading"><div><p class="eyebrow">02 / IMMUTABLE LEDGER</p><h2>Public Audit Ledger</h2></div><span class="ledger-note">Select a record to inspect its tree</span></div><div class="table-shell"><table><thead><tr><th>ID</th><th>Merkle Root</th><th>Storage Privacy</th><th>Version</th><th>Creator</th><th>Submitted By</th><th>Timestamp</th></tr></thead><tbody id="public-records-body"><tr><td colspan="7" class="table-empty">Loading audit records...</td></tr></tbody></table></div></section>
+    <section class="content-card explorer-card">
+      <div class="card-header">
+        <div>
+          <p class="card-kicker">01 / ACTIVE DATASET</p>
+          <h2>Decentralized Merkle Tree &amp; Nutrition Label</h2>
+        </div>
+        <label class="select-label">Dataset version
+          <select id="dataset-selector"><option value="">Loading datasets...</option></select>
+        </label>
+      </div>
+      <div id="tree-detail" class="tree-detail"><div class="table-empty">Loading the public tree...</div></div>
+      <div id="public-nutrition-container" style="margin-top:16px;"></div>
+    </section>
+
+    <section class="records-section">
+      <div class="section-heading inline-heading">
+        <div>
+          <p class="eyebrow">02 / IMMUTABLE LEDGER &amp; AI PROVENANCE</p>
+          <h2>Public Audit Ledger</h2>
+        </div>
+        <span class="ledger-note">Select a record to inspect its tree and nutrition label</span>
+      </div>
+      <div class="ledger-tabs" id="public-ledger-tabs" style="display:flex;align-items:center;">
+        <button type="button" class="ledger-tab active" data-tab="active">Active Datasets (<span id="public-active-count">0</span>)</button>
+        <button type="button" class="ledger-tab" data-tab="history">🕒 Revocation &amp; Superseding History (<span id="public-history-count">0</span>)</button>
+        <button type="button" class="ledger-tab" data-tab="creator-ip">🎨 Creator IP &amp; Royalty Marketplace (<span id="public-creator-ip-count">0</span>)</button>
+        <button type="button" class="button button-secondary" onclick="window.openCreatorIpModal()" style="margin-left:auto;font-size:11px;padding:6px 12px;cursor:pointer;border-radius:6px;">＋ Register Creator IP</button>
+      </div>
+      <div class="table-shell">
+        <table>
+          <thead id="public-records-thead">
+            <tr>
+              <th>ID</th>
+              <th>Merkle Root</th>
+              <th>Status</th>
+              <th>Bound AI Model</th>
+              <th>Storage Privacy</th>
+              <th>Version</th>
+              <th>Creator</th>
+              <th>Submitted By</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="public-records-body">
+            <tr><td colspan="9" class="table-empty">Loading audit records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </main>
+
+  <!-- Modal: Attest Dataset (Independent Auditor) -->
+  <div id="attest-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-head">
+        <strong style="color:#0284c7;display:flex;align-items:center;gap:6px;">⚖️ Independent Auditor Attestation</strong>
+        <button type="button" class="copy-button" id="close-attest-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="attest-dataset-form" style="display:flex;flex-direction:column;gap:14px;">
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.45;">
+            As an authorized independent regulator (Account #2), verify this dataset's Merkle structure and issue an on-chain compliance endorsement. The auditor fee will be transferred to your wallet upon confirmation.
+          </p>
+          <div style="background:var(--sage);padding:10px;border-radius:6px;font-size:11.5px;font-family:'JetBrains Mono',monospace;">
+            <div>Target Root: <code id="attest-root-display">—</code></div>
+          </div>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Audit Inspection Report URI / IPFS CID
+            <input type="text" id="attest-report-input" value="ipfs://audit-report-certik-001" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <button type="submit" class="button button-primary" style="background:#0284c7;margin-top:6px;">Confirm Attestation &amp; Claim Fee <span>⚖️</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Register Creator IP -->
+  <div id="creator-ip-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-head">
+        <strong style="color:var(--forest);display:flex;align-items:center;gap:6px;">🎨 Register Creator IP &amp; Royalty Fee</strong>
+        <button type="button" class="copy-button" id="close-creator-ip-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="register-creator-ip-form" style="display:flex;flex-direction:column;gap:14px;">
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.45;">
+            Register your original creative work on-chain. When an AI company incorporates your work into an audited dataset, they pay your instant royalty fee directly on Ethereum!
+          </p>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Creative Work Title / Asset Identifier
+            <input type="text" id="cip-title-input" placeholder="e.g. MedResearch Article #101" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-size:13px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Exact File SHA-256 Hash
+            <input type="text" id="cip-hash-input" placeholder="64-character hexadecimal SHA-256 hash" maxlength="66" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Perceptual SimHash (64-bit Fuzzy Fingerprint - Optional)
+            <input type="text" id="cip-simhash-input" placeholder="16-character hex (e.g. 1234567890abcdef)" maxlength="18" style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Instant Auto-License Fee (ETH)
+            <input type="number" id="cip-fee-input" value="0.05" step="0.01" min="0.001" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+          </label>
+          <button type="submit" class="button button-primary" style="margin-top:6px;">Register Work on Ethereum Blockchain <span>↗</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" class="toast-container" aria-live="polite"></div><script src="js/app.js"></script>
 </body>
 </html>

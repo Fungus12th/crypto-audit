@@ -1,0 +1,5 @@
+PATIENT ENCOUNTER SUMMARY:
+Age: 54 | Gender: F
+Chief Complaint: Intermittent palpitations and mild exertional dyspnea for 3 weeks.
+Assessment: Essential hypertension, benign supraventricular ectopy.
+Plan: Initiate low-dose beta-blocker, 24-hr Holter monitoring, follow up in 30 days.

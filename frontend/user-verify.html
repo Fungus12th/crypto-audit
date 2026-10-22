@@ -27,10 +27,23 @@
       <p>Confirm that your confidential file or hash is included in an on-chain audit without exposing patient/enterprise data to the public.</p>
     </section>
 
+    <!-- Multi-Actor Web3 Wallet Bar -->
+    <div id="web3-wallet-bar" class="web3-wallet-bar">
+      <div class="wallet-bar-label"><span>🌐 Web3 Wallets:</span></div>
+      <div id="wallet-list" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">Loading wallets...</div>
+    </div>
+
     <section class="content-card verify-card">
       <div class="card-header">
         <div><p class="card-kicker">01 / CONFIDENTIAL INCLUSION PROOF</p><h2>Verify Your Record</h2></div>
         <span class="secure-label">◈ PRIVACY-PRESERVING / MERKLE</span>
+      </div>
+
+      <!-- Engine Selector: Server Dual-Layer vs 100% Client-Side Web3 -->
+      <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Verification Engine:</span>
+        <button type="button" class="verify-tab active" id="engine-server-btn" style="font-size:11px;padding:5px 12px;">⚡ Server Dual-Layer (On-Chain + Off-Chain)</button>
+        <button type="button" class="verify-tab" id="engine-client-btn" style="font-size:11px;padding:5px 12px;">🛡️ 100% Client-Side Web3 (Zero-Trust Sandbox)</button>
       </div>
 
       <!-- Verification Input Mode Tabs -->

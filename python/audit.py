@@ -119,10 +119,36 @@ def cmd_verify(args):
     print(f"  Computed root: {get_root(tree)}")
 
     if is_valid:
-        print("  PASS - file matches Merkle root\n")
+        print("  [Off-Chain Math]:  PASS - Merkle proof mathematically valid")
     else:
-        print("  FAIL - file does not match Merkle root\n")
+        print("  [Off-Chain Math]:  FAIL - Merkle proof invalid")
         sys.exit(1)
+
+    # Optional on-chain verification check
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
+        if w3.is_connected():
+            address_file = os.path.join(os.path.dirname(__file__), "..", "deployed_address.json")
+            if os.path.isfile(address_file):
+                with open(address_file) as f:
+                    contract_addr = json.load(f)["address"]
+                abi_file = os.path.join(os.path.dirname(__file__), "..", "artifacts", "contracts", "AuditRegistry.sol", "AuditRegistry.json")
+                if os.path.isfile(abi_file):
+                    with open(abi_file) as f:
+                        contract_abi = json.load(f)["abi"]
+                    contract = w3.eth.contract(address=Web3.to_checksum_address(contract_addr), abi=contract_abi)
+                    is_right = [d == "right" for _, d in proof]
+                    p_bytes = [bytes.fromhex(h) for h, _ in proof]
+                    r_bytes = bytes.fromhex(expected_root)
+                    l_bytes = bytes.fromhex(target_hash)
+                    onchain_valid, root_anchored = contract.functions.verifyMerkleProof(r_bytes, l_bytes, p_bytes, is_right).call()
+                    if onchain_valid and root_anchored:
+                        print("  [Smart Contract]:  PASS - On-chain EVM contract verified & anchored\n")
+                    else:
+                        print(f"  [Smart Contract]:  NOTICE - On-chain verification: valid={onchain_valid}, anchored={root_anchored}\n")
+    except Exception:
+        pass
 
 
 def main():

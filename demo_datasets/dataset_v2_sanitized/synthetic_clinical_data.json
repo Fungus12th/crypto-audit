@@ -1,0 +1,7 @@
+{
+  "synthetic_model": "GAN-Clinica-v4",
+  "generated_samples": 5000,
+  "license": "CC0-1.0-Universal-Public-Domain",
+  "verified_scrubbed": true,
+  "privacy_guarantee": "Differential Privacy epsilon=0.25, delta=1e-5"
+}

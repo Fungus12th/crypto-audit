@@ -1,0 +1,8 @@
+{
+  "scan_id": "MRI-AX-88219",
+  "modality": "MRI-T2-FLAIR",
+  "resolution_voxels": [512, 512, 64],
+  "slice_thickness_mm": 1.5,
+  "magnetic_field_tesla": 3.0,
+  "findings": "Mild bilateral periventricular hyperintensities consistent with chronic microvascular ischemic changes."
+}

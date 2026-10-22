@@ -1,0 +1,5 @@
+patient_id,heart_rate,pr_interval,qrs_duration,qt_interval,rhythm
+PT-1001,72,160,88,410,Normal Sinus
+PT-1002,88,142,94,395,Sinus Tachycardia
+PT-1003,58,190,110,440,Bradycardia with Borderline AV Block
+PT-1004,74,155,84,405,Normal Sinus

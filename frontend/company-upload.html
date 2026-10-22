@@ -33,6 +33,12 @@
       </div>
     </section>
 
+    <!-- Multi-Actor Web3 Wallet Bar -->
+    <div id="web3-wallet-bar" class="web3-wallet-bar">
+      <div class="wallet-bar-label"><span>🌐 Web3 Wallets:</span></div>
+      <div id="wallet-list" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">Loading wallets...</div>
+    </div>
+
     <section class="content-card upload-card">
       <div class="card-header">
         <div>
@@ -79,6 +85,49 @@
             <code id="submit-ipfs-value">Pending upload</code>
           </div>
         </div>
+
+        <!-- Dataset Version Lineage & Poisoned Data Purge (v2 Lineage) -->
+        <div style="background:var(--sage);border:1px solid rgba(26,77,46,.15);border-radius:8px;padding:16px 18px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px;color:var(--forest);">
+              <input type="checkbox" id="supersede-checkbox" style="width:16px;height:16px;accent-color:var(--forest);">
+              <span>Supersede / Purge Earlier Dataset (v2 Lineage)</span>
+            </label>
+            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;">GDPR / Poisoned Data Purge</span>
+          </div>
+          <div id="supersede-fields" style="display:none;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);">
+            <div class="form-grid" style="margin:0 0 10px;">
+              <label>Select Parent Root to Revoke
+                <select id="parent-root-select" style="padding:10px;border:1px solid var(--line);border-radius:5px;background:var(--white);color:var(--forest);font-family:'JetBrains Mono',monospace;font-size:11px;">
+                  <option value="">-- Choose active dataset to supersede --</option>
+                </select>
+              </label>
+              <label>Revocation / Purge Reason
+                <input type="text" id="revocation-reason-input" placeholder="e.g. GDPR Right-to-be-Forgotten deletion / Poisoned data purge" style="padding:10px;border:1px solid var(--line);border-radius:5px;background:var(--white);font-size:12px;">
+              </label>
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin:0;line-height:1.4;">
+              ⚡ Calling <code>supersedeRoot()</code> marks the parent Merkle root as revoked on-chain and anchors this clean dataset version as its cryptographically linked successor.
+            </p>
+          </div>
+        </div>
+
+        <!-- Independent Auditor Service Bounty -->
+        <div style="background:#fefce8;border:1px solid #fef08a;border-radius:8px;padding:16px 18px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <strong style="color:#854d0e;font-size:12.5px;display:flex;align-items:center;gap:6px;">
+              <span>⚖️</span> Independent Auditor Inspection Bounty (Web3 Escrow)
+            </strong>
+            <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#a16207;text-transform:uppercase;">Decentralized Escrow</span>
+          </div>
+          <div class="form-grid single" style="margin:0 0 10px;">
+            <label>Auditor Service Fee (ETH)
+              <input type="number" id="auditor-fee-input" value="0.2" step="0.05" min="0" style="padding:10px;border:1px solid var(--line);border-radius:5px;background:var(--white);font-family:'JetBrains Mono',monospace;font-size:12px;">
+              <small style="font-size:10.5px;color:var(--muted);margin-top:3px;">Held in smart contract escrow and automatically transferred to independent regulator upon on-chain attestation</small>
+            </label>
+          </div>
+        </div>
+
         <button class="button button-primary" type="submit" data-loading-label="Submitting to Chain…">Anchor Root On-Chain <span>↗</span></button>
       </form>
       <div id="submit-result" class="result-panel" hidden></div>
@@ -92,12 +141,19 @@
         </div>
         <button id="refresh-records" class="icon-button" type="button" title="Refresh">↻ <span>Refresh</span></button>
       </div>
+      <div class="ledger-tabs" id="upload-ledger-tabs">
+        <button type="button" class="ledger-tab active" data-tab="active">Active Datasets (<span id="active-count">0</span>)</button>
+        <button type="button" class="ledger-tab" data-tab="history">🕒 Revocation &amp; Superseding History (<span id="history-count">0</span>)</button>
+        <button type="button" class="ledger-tab" data-tab="creator-ip">🎨 Creator IP &amp; Royalty Marketplace (<span id="upload-creator-ip-count">0</span>)</button>
+      </div>
       <div class="table-shell">
         <table>
-          <thead>
+          <thead id="records-thead">
             <tr>
               <th>ID</th>
               <th>Merkle Root</th>
+              <th>Status</th>
+              <th>Bound AI Model</th>
               <th>IPFS Storage</th>
               <th>Version</th>
               <th>Creator</th>
@@ -107,13 +163,72 @@
           </thead>
           <tbody id="records-body">
             <tr>
-              <td colspan="7" class="table-empty">Loading records…</td>
+              <td colspan="9" class="table-empty">Loading records…</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <!-- Modal: Register Creator IP -->
+  <div id="creator-ip-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-head">
+        <strong style="color:var(--forest);display:flex;align-items:center;gap:6px;">🎨 Register Creator IP &amp; Royalty Fee</strong>
+        <button type="button" class="copy-button" id="close-creator-ip-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="register-creator-ip-form" style="display:flex;flex-direction:column;gap:14px;">
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.45;">
+            Register your original creative work, dataset article, or code on-chain. When an AI company incorporates your work into their training corpus, they pay your instant royalty fee directly on Ethereum!
+          </p>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Creative Work Title / Asset Identifier
+            <input type="text" id="cip-title-input" placeholder="e.g. MedResearch Article #101" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-size:13px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Exact File SHA-256 Hash
+            <input type="text" id="cip-hash-input" placeholder="64-character hexadecimal SHA-256 hash" maxlength="66" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Perceptual SimHash (64-bit Fuzzy Fingerprint - Optional)
+            <input type="text" id="cip-simhash-input" placeholder="16-character hex (e.g. 1234567890abcdef)" maxlength="18" style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Instant Auto-License Fee (ETH)
+            <input type="number" id="cip-fee-input" value="0.05" step="0.01" min="0.001" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+          </label>
+          <button type="submit" class="button button-primary" style="margin-top:6px;">Register Work on Ethereum Blockchain <span>↗</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Attest Dataset (Independent Auditor) -->
+  <div id="attest-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-head">
+        <strong style="color:#0284c7;display:flex;align-items:center;gap:6px;">⚖️ Independent Auditor Attestation</strong>
+        <button type="button" class="copy-button" id="close-attest-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="attest-dataset-form" style="display:flex;flex-direction:column;gap:14px;">
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.45;">
+            As an independent compliance regulator (Account #2), review this dataset's Merkle structure and issue an on-chain compliance endorsement. The auditor fee will be transferred to your wallet upon confirmation.
+          </p>
+          <div style="background:var(--sage);padding:10px;border-radius:6px;font-size:11.5px;font-family:'JetBrains Mono',monospace;">
+            <div>Target Root: <code id="attest-root-display">—</code></div>
+          </div>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Audit Inspection Report URI / IPFS CID
+            <input type="text" id="attest-report-input" value="ipfs://audit-report-certik-001" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <button type="submit" class="button button-primary" style="background:#0284c7;margin-top:6px;">Confirm Attestation &amp; Claim Fee <span>⚖️</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <footer class="site-footer container"><span>MERKLE ROOT / AUDIT SYSTEM</span><span>Built for verifiable data</span></footer>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>

@@ -181,4 +181,169 @@ describe("AuditRegistry", function () {
     expect(result[1]).to.equal(datasetVersion);
     expect(result[2]).to.equal(creator);
   });
+
+  // ─── On-Chain Merkle Proof Verifier ───────────────────────────────
+
+  it("should verify a valid Merkle proof matching python/merkle.py calculation", async function () {
+    const leaf0 = "0xc5a0216eb05a80c47820c3a8bceeeb6f663d3271a16cfd45bc29e5f07731abf6";
+    const leaf1 = "0x008951316750d0ea2f133a24e6c28d74a0835982d07dc4948cac9c093660aea4";
+    const expectedRoot = "0x7ba5bdbc1383253005928c31a1e44695f46b6c1c9030ff9465f5aae36cfbaa32";
+
+    // 1. Before root is anchored on-chain
+    let [isValid, rootAnchored] = await registry.verifyMerkleProof(
+      expectedRoot,
+      leaf0,
+      [leaf1],
+      [true]
+    );
+    expect(isValid).to.equal(true);
+    expect(rootAnchored).to.equal(false);
+
+    // 2. Anchor root on-chain
+    await registry.submitRoot(expectedRoot, "v1.0", "Acme AI Systems");
+
+    [isValid, rootAnchored] = await registry.verifyMerkleProof(
+      expectedRoot,
+      leaf0,
+      [leaf1],
+      [true]
+    );
+    expect(isValid).to.equal(true);
+    expect(rootAnchored).to.equal(true);
+
+    // 3. Verify leaf1 with left sibling (isRightSibling = false)
+    const [isValid1, rootAnchored1] = await registry.verifyMerkleProof(
+      expectedRoot,
+      leaf1,
+      [leaf0],
+      [false]
+    );
+    expect(isValid1).to.equal(true);
+    expect(rootAnchored1).to.equal(true);
+
+    // 4. Altered leaf should fail mathematical validity
+    const fakeLeaf = "0x1111111111111111111111111111111111111111111111111111111111111111";
+    const [isFakeValid, fakeAnchored] = await registry.verifyMerkleProof(
+      expectedRoot,
+      fakeLeaf,
+      [leaf1],
+      [true]
+    );
+    expect(isFakeValid).to.equal(false);
+    expect(fakeAnchored).to.equal(true);
+  });
+
+  // ─── Version Lineage & Superseding (Poisoned-Data Purge) ───────────
+
+  it("should supersede an old root and track lineage immutably", async function () {
+    const v1Root = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const v2Root = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    const reason = "GDPR Article 17 right-to-erasure compliance: purged patient #42";
+
+    await registry.submitRootWithNotes(v1Root, "v1.0", "Acme Health", "v1 notes");
+
+    // Supersede v1 with v2
+    const tx = await registry.supersedeRoot(
+      v1Root,
+      v2Root,
+      "v2.0",
+      "Acme Health",
+      "v2 clean dataset",
+      reason
+    );
+
+    // Check event emission
+    await expect(tx)
+      .to.emit(registry, "RootSuperseded")
+      .withArgs(v1Root, v2Root, reason, (val) => val > 0);
+
+    // Check v1 record status
+    const v1Lineage = await registry.getRecordLineage(0);
+    expect(v1Lineage.parentRoot).to.equal(ethers.ZeroHash);
+    expect(v1Lineage.supersededBy).to.equal(v2Root);
+    expect(v1Lineage.isRevoked).to.equal(true);
+    expect(v1Lineage.revocationReason).to.equal(reason);
+
+    // Check v2 record status
+    const v2Lineage = await registry.getRecordLineage(1);
+    expect(v2Lineage.parentRoot).to.equal(v1Root);
+    expect(v2Lineage.supersededBy).to.equal(ethers.ZeroHash);
+    expect(v2Lineage.isRevoked).to.equal(false);
+
+    // Lookup by root
+    const v2ByRoot = await registry.getRecordByRoot(v2Root);
+    expect(v2ByRoot.id).to.equal(1);
+    expect(v2ByRoot.datasetVersion).to.equal("v2.0");
+    expect(v2ByRoot.parentRoot).to.equal(v1Root);
+
+    // Attempting to supersede an already revoked root should fail
+    await expect(
+      registry.supersedeRoot(
+        v1Root,
+        "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "v3.0",
+        "Acme Health",
+        "",
+        "try again"
+      )
+    ).to.be.revertedWithCustomError(registry, "AlreadyRevoked");
+  });
+
+  // ─── AI Model Checkpoint Registration ─────────────────────────────
+
+  it("should register an AI model checkpoint bound to an anchored dataset", async function () {
+    const datasetRoot = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    const modelWeightsHash = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    await registry.submitRoot(datasetRoot, "v1.0", "Acme AI Labs");
+
+    const tx = await registry.registerModelCheckpoint(
+      modelWeightsHash,
+      datasetRoot,
+      "MedVision-ResNet50",
+      "PyTorch 2.4",
+      JSON.stringify({ accuracy: 0.984, f1_score: 0.979 })
+    );
+
+    await expect(tx)
+      .to.emit(registry, "ModelCheckpointRegistered")
+      .withArgs(
+        0,
+        modelWeightsHash,
+        datasetRoot,
+        "MedVision-ResNet50",
+        "PyTorch 2.4",
+        (val) => val.includes("accuracy"),
+        owner.address,
+        (val) => val > 0
+      );
+
+    expect(await registry.getModelCheckpointCount()).to.equal(1);
+    const checkpoint = await registry.getModelCheckpoint(0);
+    expect(checkpoint.modelWeightsHash).to.equal(modelWeightsHash);
+    expect(checkpoint.datasetRoot).to.equal(datasetRoot);
+    expect(checkpoint.modelName).to.equal("MedVision-ResNet50");
+    expect(checkpoint.framework).to.equal("PyTorch 2.4");
+
+    // Reject duplicate checkpoint registration
+    await expect(
+      registry.registerModelCheckpoint(
+        modelWeightsHash,
+        datasetRoot,
+        "Duplicate Model",
+        "PyTorch",
+        "{}"
+      )
+    ).to.be.revertedWithCustomError(registry, "ModelAlreadyRegistered");
+
+    // Reject checkpoint bound to non-existent dataset root
+    await expect(
+      registry.registerModelCheckpoint(
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "0x1234567890123456789012345678901234567890123456789012345678901234",
+        "Orphan Model",
+        "PyTorch",
+        "{}"
+      )
+    ).to.be.revertedWithCustomError(registry, "RootNotFound");
+  });
 });

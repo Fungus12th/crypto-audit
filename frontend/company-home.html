@@ -28,7 +28,13 @@
       </div>
     </section>
 
-    <div class="dashboard-cards">
+    <!-- Multi-Actor Web3 Wallet Bar -->
+    <div id="web3-wallet-bar" class="web3-wallet-bar">
+      <div class="wallet-bar-label"><span>🌐 Web3 Wallets:</span></div>
+      <div id="wallet-list" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">Loading wallets...</div>
+    </div>
+
+    <div class="dashboard-cards" style="grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
       <div class="dash-card">
         <p class="card-kicker">ORGANIZATION</p>
         <h3 data-user-name>—</h3>
@@ -48,6 +54,12 @@
         <p>Hash files, build Merkle tree, and anchor on-chain.</p>
         <a class="button button-primary" href="company-upload.html">Upload Dataset <span>→</span></a>
       </div>
+      <div class="dash-card action-card" style="background:linear-gradient(135deg,rgba(224,242,254,.7),rgba(255,255,255,.9));border-color:rgba(3,105,161,.2);">
+        <p class="card-kicker" style="color:#0284c7;">AI PROVENANCE</p>
+        <h3>Bind Model Checkpoint</h3>
+        <p>Cryptographically link trained model weights to an audited Merkle root.</p>
+        <button id="open-model-modal-btn" class="button button-primary" type="button" style="background:#0369a1;width:100%;">Bind Model Checkpoint <span>⛓</span></button>
+      </div>
     </div>
 
     <section class="records-section">
@@ -58,12 +70,20 @@
         </div>
         <button id="refresh-records" class="icon-button" type="button" title="Refresh">↻ <span>Refresh</span></button>
       </div>
+      <div class="ledger-tabs" id="company-ledger-tabs" style="display:flex;align-items:center;">
+        <button type="button" class="ledger-tab active" data-tab="active">Active Datasets (<span id="active-count">0</span>)</button>
+        <button type="button" class="ledger-tab" data-tab="history">🕒 Revocation &amp; Superseding History (<span id="history-count">0</span>)</button>
+        <button type="button" class="ledger-tab" data-tab="creator-ip">🎨 Creator IP &amp; Royalty Marketplace (<span id="creator-ip-count">0</span>)</button>
+        <button type="button" class="button button-secondary" onclick="window.openCreatorIpModal()" style="margin-left:auto;font-size:11px;padding:6px 12px;cursor:pointer;border-radius:6px;">＋ Register Creator IP</button>
+      </div>
       <div class="table-shell">
         <table>
-          <thead>
+          <thead id="records-thead">
             <tr>
               <th>ID</th>
               <th>Root</th>
+              <th>Status</th>
+              <th>Bound AI Model</th>
               <th>IPFS Storage</th>
               <th>Version</th>
               <th>Creator</th>
@@ -73,13 +93,120 @@
           </thead>
           <tbody id="records-body">
             <tr>
-              <td colspan="7" class="table-empty">Loading…</td>
+              <td colspan="9" class="table-empty">Loading…</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <!-- Modal: Bind AI Model Checkpoint -->
+  <div id="model-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-head">
+        <strong style="color:#0369a1;display:flex;align-items:center;gap:6px;">⛓ Bind AI Model Checkpoint to Dataset Root</strong>
+        <button type="button" class="copy-button" id="close-model-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="bind-model-form" style="display:flex;flex-direction:column;gap:14px;">
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Model Architecture / Name
+            <input type="text" id="model-name-input" placeholder="e.g. ResNet50-Classifier-v2" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-size:13px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Training Framework
+            <input type="text" id="model-framework-input" value="PyTorch 2.2 / CUDA" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-size:13px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Model Weights SHA-256 Checkpoint Hash
+            <input type="text" id="model-hash-input" placeholder="64-character hex hash of model weights (.pt, .bin, .safetensors)" maxlength="66" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Target Training Dataset Merkle Root
+            <select id="model-dataset-root-select" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+              <option value="">-- Select anchored dataset root --</option>
+            </select>
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Model Performance Metrics (JSON)
+            <textarea id="model-metrics-input" rows="2" style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">{"accuracy": 0.982, "f1": 0.974, "loss": 0.041}</textarea>
+          </label>
+          <div style="background:#eef2ff;border:1px solid #c7d2fe;padding:12px;border-radius:6px;display:flex;flex-direction:column;gap:10px;">
+            <span style="font-size:11px;font-weight:700;color:#3730a3;text-transform:uppercase;letter-spacing:.04em;">🔒 Confidential Computing / TEE Hardware Attestation (Optional)</span>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);font-weight:600;">
+              Hardware Enclave Quote Hash (Intel SGX / NVIDIA H100)
+              <input type="text" id="model-tee-quote-input" placeholder="64-character SHA-256 quote hash" maxlength="66" style="padding:8px;border:1px solid var(--line);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);font-weight:600;">
+              Canary Trap Dataset Fingerprint Hash (Anti-Omission Proof)
+              <input type="text" id="model-canary-input" placeholder="64-character SHA-256 canary trap hash" maxlength="66" style="padding:8px;border:1px solid var(--line);border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+            </label>
+          </div>
+          <button type="submit" class="button button-primary" style="background:#0369a1;margin-top:6px;">Cryptographically Anchor Model on Blockchain <span>↗</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Register Creator IP -->
+  <div id="creator-ip-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-head">
+        <strong style="color:var(--forest);display:flex;align-items:center;gap:6px;">🎨 Register Creator IP &amp; Royalty Fee</strong>
+        <button type="button" class="copy-button" id="close-creator-ip-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="register-creator-ip-form" style="display:flex;flex-direction:column;gap:14px;">
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.45;">
+            Register your original creative work, dataset article, or code on-chain. When an AI company incorporates your work into their training corpus, they pay your instant royalty fee directly on Ethereum!
+          </p>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Creative Work Title / Asset Identifier
+            <input type="text" id="cip-title-input" placeholder="e.g. MedResearch Article #101" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-size:13px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Exact File SHA-256 Hash
+            <input type="text" id="cip-hash-input" placeholder="64-character hexadecimal SHA-256 hash" maxlength="66" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Perceptual SimHash (64-bit Fuzzy Fingerprint - Optional)
+            <input type="text" id="cip-simhash-input" placeholder="16-character hex (e.g. 1234567890abcdef)" maxlength="18" style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Instant Auto-License Fee (ETH)
+            <input type="number" id="cip-fee-input" value="0.05" step="0.01" min="0.001" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:13px;">
+          </label>
+          <button type="submit" class="button button-primary" style="margin-top:6px;">Register Work on Ethereum Blockchain <span>↗</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Attest Dataset (Independent Auditor) -->
+  <div id="attest-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-head">
+        <strong style="color:#0284c7;display:flex;align-items:center;gap:6px;">⚖️ Independent Auditor Attestation</strong>
+        <button type="button" class="copy-button" id="close-attest-modal" style="font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="attest-dataset-form" style="display:flex;flex-direction:column;gap:14px;">
+          <p style="font-size:12px;color:var(--muted);margin:0;line-height:1.45;">
+            As an independent compliance regulator (Account #2), review this dataset's Merkle structure and issue an on-chain compliance endorsement. The auditor fee will be transferred to your wallet upon confirmation.
+          </p>
+          <div style="background:var(--sage);padding:10px;border-radius:6px;font-size:11.5px;font-family:'JetBrains Mono',monospace;">
+            <div>Target Root: <code id="attest-root-display">—</code></div>
+          </div>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);font-weight:600;">
+            Audit Inspection Report URI / IPFS CID
+            <input type="text" id="attest-report-input" value="ipfs://audit-report-certik-001" required style="padding:10px;border:1px solid var(--line);border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+          </label>
+          <button type="submit" class="button button-primary" style="background:#0284c7;margin-top:6px;">Confirm Attestation &amp; Claim Fee <span>⚖️</span></button>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <footer class="site-footer container"><span>MERKLE ROOT / AUDIT SYSTEM</span><span>Built for verifiable data</span></footer>
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
