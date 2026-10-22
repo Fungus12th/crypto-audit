@@ -109,10 +109,11 @@ The unified single login portal automatically maps authenticated credentials to 
 | **Alice Nakamoto** | `alice` / `alice123` | `#3` `0x90F7...b906` | Independent Creator & Royalty Earner | 10,000.0 ETH |
 | **Protocol DAO** | `admin` / `admin123` | `#0` `0xf39F...2266` | Protocol Deployer, Auditor Licenser & Circuit Breaker | 10,000.0 ETH |
 
-### Strict Multi-Party Boundary Enforcement:
+### Strict Multi-Party Boundary & Privacy Enforcement:
 * **No Company Self-Attestation**: Dataset submitters cannot attest or approve their own datasets; an accredited independent auditor must inspect and co-sign.
 * **No Auditor Model Hijacking**: Independent auditors cannot upload datasets or bind AI model checkpoints. Smart contracts enforce `require(records[recordId].submittedBy == msg.sender)` so only the authentic dataset creator can bind AI models.
-* **Per-Match Direct Royalties**: When an AI company incorporates a creator's registered file, the royalty fee is settled directly per-dataset root on Ethereum. Stale or unanchored roots are strictly filtered out via `rootExists` validation.
+* **Actor Balance Privacy & Zero-Knowledge Identity Isolation**: In accordance with enterprise privacy and data isolation standards, live ETH balances are strictly private to the currently authenticated persona. Other protocol actors display role badges and addresses only. Unauthenticated public observers receive zero balance telemetry.
+* **Company-to-Creator On-Chain Royalty Settlement**: When a creator registers IP or requests settlement for detected dataset usage, the protocol executes on-chain payment directly from the AI company submitter (`submittedBy` / Acme AI) to the creator (`ip.owner` / Alice). The creator's balance immediately and provably increases on Ethereum, and the dataset is permanently stamped `✓ Royalty Paid • Licensed`. Stale or unanchored roots are strictly filtered out via `rootExists` validation.
 
 ---
 

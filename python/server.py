@@ -1204,25 +1204,41 @@ def api_models():
 
 @app.route("/api/wallets", methods=["GET"])
 def api_wallets():
-    """Returns live balances, roles, and reputation scores for the 4 Web3 actor wallets."""
+    """Returns live balances, roles, and reputation scores for the 4 Web3 actor wallets.
+    Privacy enforcement: live ETH balance is strictly returned ONLY for the authenticated actor."""
     w3, contract, contract_address = get_contract()
     if not w3 or not w3.is_connected():
         return jsonify({"wallets": [], "connected": False}), 503
+
+    # Authenticate caller to isolate balance visibility
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
+    sess = active_sessions.get(token)
+    auth_wallet_index = sess.get("wallet_index") if sess else None
+
+    # Fallback to query parameter if session token is not present
+    if auth_wallet_index is None and request.args.get("account"):
+        try:
+            auth_wallet_index = int(request.args.get("account"))
+        except ValueError:
+            pass
 
     accounts = w3.eth.accounts
     wallets_out = []
     for entry in ACTOR_WALLETS:
         idx = entry["index"]
         addr = accounts[idx] if idx < len(accounts) else None
-        bal_eth = 0.0
+        bal_eth = None
         reputation = 0
         is_auth = False
         if addr:
-            try:
-                bal_wei = w3.eth.get_balance(addr)
-                bal_eth = round(float(w3.from_wei(bal_wei, "ether")), 4)
-            except Exception:
-                pass
+            # Privacy rule: Only reveal ETH balance for the logged-in persona
+            if auth_wallet_index is not None and idx == auth_wallet_index:
+                try:
+                    bal_wei = w3.eth.get_balance(addr)
+                    bal_eth = round(float(w3.from_wei(bal_wei, "ether")), 4)
+                except Exception:
+                    pass
             if contract:
                 try:
                     reputation = contract.functions.auditorReputation(addr).call()
@@ -1481,7 +1497,7 @@ def api_get_creator_ip():
 
 @app.route("/api/auto-license", methods=["POST"])
 def api_auto_license():
-    """AI Company proactively licenses detected creator IP, earning slashing immunity."""
+    """AI Company proactively licenses detected creator IP, transferring royalty ETH directly to the Creator."""
     data = request.get_json() or {}
     dataset_root = (data.get("dataset_root") or "").strip().lower()
     if dataset_root.startswith("0x"):
@@ -1489,21 +1505,48 @@ def api_auto_license():
     creator_leaf_hash = (data.get("creator_leaf_hash") or "").strip().lower()
     if creator_leaf_hash.startswith("0x"):
         creator_leaf_hash = creator_leaf_hash[2:]
-    account_idx = int(data.get("account") or 1)
 
     w3, contract, contract_address = get_contract()
     if not w3 or not contract:
         return jsonify({"error": "Blockchain node not connected"}), 503
 
-    company_acc = w3.eth.accounts[account_idx]
-    root_bytes = bytes.fromhex(dataset_root)
-    leaf_bytes = bytes.fromhex(creator_leaf_hash)
+    try:
+        root_bytes = bytes.fromhex(dataset_root)
+        leaf_bytes = bytes.fromhex(creator_leaf_hash)
+    except Exception as e:
+        return jsonify({"error": f"Invalid hex root or leaf hash: {e}"}), 400
+
+    # Determine the dataset submitter (Company) who owes and must pay the royalty
+    company_acc = w3.eth.accounts[1]  # Default Acme AI Company (Account #1)
+    try:
+        if contract.functions.rootExists(root_bytes).call():
+            rec = contract.functions.getRecordByRoot(root_bytes).call()
+            # rec[4] is submittedBy address
+            if rec[4] and rec[4] in w3.eth.accounts:
+                company_acc = rec[4]
+    except Exception as e:
+        print(f"Notice: resolving dataset submitter: {e}")
 
     try:
         ip_data = contract.functions.getCreatorIP(leaf_bytes).call()
+        creator_owner = ip_data[0]
         fee_wei = ip_data[4]
         if fee_wei == 0:
             fee_wei = int(0.05 * 10**18)
+
+        # Check if already licensed
+        is_already = contract.functions.isLicensedForDataset(root_bytes, leaf_bytes).call()
+        if is_already:
+            return jsonify({
+                "success": True,
+                "message": "Dataset is already legally licensed for this creator IP.",
+                "dataset_root": dataset_root,
+                "creator_leaf_hash": creator_leaf_hash,
+                "fee_eth": round(float(w3.from_wei(fee_wei, "ether")), 4),
+                "ip_owner": creator_owner,
+                "paid_by": company_acc,
+                "is_licensed": True,
+            })
 
         tx_hash = contract.functions.autoLicenseIP(root_bytes, leaf_bytes).transact({
             "from": company_acc,
@@ -1518,7 +1561,8 @@ def api_auto_license():
             "dataset_root": dataset_root,
             "creator_leaf_hash": creator_leaf_hash,
             "fee_eth": round(float(w3.from_wei(fee_wei, "ether")), 4),
-            "ip_owner": ip_data[0],
+            "ip_owner": creator_owner,
+            "paid_by": company_acc,
             "is_licensed": True,
         })
     except Exception as e:

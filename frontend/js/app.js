@@ -292,7 +292,9 @@
     const listEl = $('#wallet-list');
     if (!listEl) return;
     try {
-      const data = await request('/api/wallets');
+      const s = getSession();
+      const query = (s && typeof s.wallet_index === 'number') ? `?account=${s.wallet_index}` : '';
+      const data = await request('/api/wallets' + query);
       if (!data.wallets || data.wallets.length === 0) {
         listEl.innerHTML = '<span style="color:var(--muted);font-size:11px;">Hardhat node disconnected</span>';
         return;
@@ -320,19 +322,22 @@
     const otherWalletsHtml = otherWallets.map(w => {
       const rep = w.index === 2 ? ` ⚖️ Rep: ${w.reputation}` : '';
       return `
-        <span class="wallet-pill" style="opacity:0.8;cursor:default;font-size:10.5px;padding:3px 8px;background:var(--sage);color:var(--charcoal);border:1px solid rgba(26,77,46,0.15);" title="${escapeHtml(w.desc)} (${w.address})">
-          #${w.index} ${escapeHtml(w.role)}: ${w.balance_eth} ETH${rep}
+        <span class="wallet-pill" style="opacity:0.85;cursor:default;font-size:10.5px;padding:3px 8px;background:var(--sage);color:var(--charcoal);border:1px solid rgba(26,77,46,0.15);" title="${escapeHtml(w.desc)} (${w.address})">
+          #${w.index} ${escapeHtml(w.role)} (${formatAddress(w.address)})${rep}
         </span>
       `;
     }).join('');
 
     const statusLabel = s ? 'Authenticated Identity' : 'Public Observer';
+    const myBalanceHtml = (s && myWallet.balance_eth !== null && myWallet.balance_eth !== undefined)
+      ? `<span class="wallet-bal" style="font-weight:700;margin-left:4px;padding:1px 6px;background:rgba(255,255,255,0.18);border-radius:3px;">${myWallet.balance_eth} ETH</span>`
+      : '';
 
     listEl.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="wallet-pill active" style="box-shadow:0 0 0 2px var(--forest);" title="${escapeHtml(myWallet.desc)} (${myWallet.address})">
           <span class="wallet-role">● ${statusLabel}: #${myWallet.index} ${escapeHtml(myWallet.role.toUpperCase())} (${escapeHtml(myWallet.name)})</span>
-          <span class="wallet-bal">${myWallet.balance_eth} ETH</span>
+          ${myBalanceHtml}
           ${repHtml}
         </div>
         <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);margin-left:4px;">Other Protocol Actors:</span>
@@ -475,15 +480,24 @@
                 </div>
               `;
             } else {
+              const s = getSession();
+              const isCreator = s && s.role === 'creator';
+              const btnLabel = isCreator
+                ? `⚡ Settle Royalty from AI Co (${w.license_fee_eth} ETH)`
+                : `⚡ Pay Royalty & License (${w.license_fee_eth} ETH)`;
+              const btnTitle = isCreator
+                ? `Collect ${w.license_fee_eth} ETH royalty payment on Ethereum from Acme AI Labs directly into your wallet`
+                : `Transfer requested royalty directly from AI Company to creator on Ethereum`;
+              const badgeText = isCreator ? `⚠️ Royalty Owed by AI Co` : `⚠️ Royalty Pending`;
               return `
                 <div style="font-size:11px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;background:rgba(254,249,195,0.45);border-radius:4px;border:1px solid rgba(253,230,138,0.7);flex-wrap:wrap;">
                   <div style="display:flex;align-items:center;gap:6px;">
                     <code>${formatHash(m.dataset_root, 10)}</code>
                     <span>${escapeHtml(m.dataset_version)} (${m.similarity_score}%)</span>
-                    <span class="status-badge status-pending" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">⚠️ Royalty Pending</span>
+                    <span class="status-badge status-pending" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">${badgeText}</span>
                   </div>
-                  <button type="button" class="btn-action-sm btn-license" onclick="window.autoLicenseWork('${m.dataset_root}', '${w.exact_hash}', ${w.license_fee_eth})" title="Transfer requested royalty directly to creator on Ethereum">
-                    ⚡ Pay Royalty &amp; License (${w.license_fee_eth} ETH)
+                  <button type="button" class="btn-action-sm btn-license" onclick="window.autoLicenseWork('${m.dataset_root}', '${w.exact_hash}', ${w.license_fee_eth})" title="${btnTitle}">
+                    ${btnLabel}
                   </button>
                 </div>
               `;
@@ -515,22 +529,26 @@
   }
 
   window.autoLicenseWork = async function(root, leafHash, feeEth) {
-    if (!confirm(`Authorize royalty payment of ${feeEth} ETH directly to Creator on Ethereum to license dataset ${formatHash(root, 10)}?`)) return;
+    const s = getSession();
+    const isCreator = s && s.role === 'creator';
+    const confirmMsg = isCreator
+      ? `Execute on-chain settlement: Transfer ${feeEth} ETH royalty from Acme AI Labs directly into your Creator wallet for dataset ${formatHash(root, 10)}?`
+      : `Authorize royalty payment of ${feeEth} ETH directly from AI Company to Creator on Ethereum to license dataset ${formatHash(root, 10)}?`;
+    if (!confirm(confirmMsg)) return;
     try {
       const res = await request('/api/auto-license', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dataset_root: root,
-          creator_leaf_hash: leafHash,
-          account: activeWalletIndex
+          creator_leaf_hash: leafHash
         })
       });
-      showToast(`Royalty paid to Creator! Dataset legally licensed (Block #${res.block_number})`);
-      loadWallets();
+      showToast(`Royalty paid! ${res.fee_eth || feeEth} ETH transferred to Creator (Block #${res.block_number})`);
+      await loadWallets();
+      if (typeof loadCreatorIpTable === 'function') loadCreatorIpTable();
       if (typeof loadRecords === 'function') loadRecords();
       if (typeof loadPublicOverview === 'function') loadPublicOverview();
-      loadCreatorIpTable();
     } catch (err) {
       showToast(err.message, 'error');
     }
