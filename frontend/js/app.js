@@ -466,40 +466,32 @@
           matchesHtml = '<span style="color:var(--muted);font-size:11px;">Zero training matches</span>';
         } else {
           matchesHtml = w.matches.map(m => {
-            let statusPill = '';
             if (m.is_licensed) {
-              statusPill = '<span class="status-badge status-attested">✓ Royalty Paid • Licensed</span>';
+              return `
+                <div style="font-size:11px;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:3px 0;">
+                  <code>${formatHash(m.dataset_root, 10)}</code>
+                  <span>${escapeHtml(m.dataset_version)} (${m.similarity_score}%)</span>
+                  <span class="status-badge status-attested">✓ Royalty Paid • Licensed</span>
+                </div>
+              `;
             } else {
-              statusPill = '<span class="status-badge status-pending" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">⚠️ Royalty Pending</span>';
+              return `
+                <div style="font-size:11px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;background:rgba(254,249,195,0.45);border-radius:4px;border:1px solid rgba(253,230,138,0.7);flex-wrap:wrap;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <code>${formatHash(m.dataset_root, 10)}</code>
+                    <span>${escapeHtml(m.dataset_version)} (${m.similarity_score}%)</span>
+                    <span class="status-badge status-pending" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">⚠️ Royalty Pending</span>
+                  </div>
+                  <button type="button" class="btn-action-sm btn-license" onclick="window.autoLicenseWork('${m.dataset_root}', '${w.exact_hash}', ${w.license_fee_eth})" title="Transfer requested royalty directly to creator on Ethereum">
+                    ⚡ Pay Royalty &amp; License (${w.license_fee_eth} ETH)
+                  </button>
+                </div>
+              `;
             }
-            return `
-              <div style="font-size:11px;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <code>${formatHash(m.dataset_root, 10)}</code>
-                <span>${escapeHtml(m.dataset_version)} (${m.similarity_score}%)</span>
-                ${statusPill}
-              </div>
-            `;
           }).join('');
         }
 
-        let actionsHtml = '';
-        const unlicensedMatch = (w.matches || []).find(m => !m.is_licensed);
-        if (unlicensedMatch) {
-          actionsHtml = `
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button type="button" class="btn-action-sm btn-license" onclick="window.autoLicenseWork('${unlicensedMatch.dataset_root}', '${w.exact_hash}', ${w.license_fee_eth})" title="Transfer requested royalty directly to creator on Ethereum">
-                ⚡ Pay Royalty & License (${w.license_fee_eth} ETH)
-              </button>
-            </div>
-          `;
-        } else {
-          actionsHtml = `
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:11px;color:var(--forest);font-weight:600;">✓ Settled</span>
-              <button type="button" class="btn-action-sm btn-license" onclick="window.openCreatorIpModal()" style="font-size:10px;padding:3px 8px;">＋ New Work</button>
-            </div>
-          `;
-        }
+        const actionsHtml = `<button type="button" class="btn-action-sm btn-license" onclick="window.openCreatorIpModal()" style="font-size:11px;">＋ Register Work</button>`;
 
         return `
           <tr>
@@ -846,6 +838,16 @@
       }
       cachedCompanyRecords = data.records || [];
       renderCompanyRecordsTable();
+
+      const repEl = $('#dash-auditor-reputation');
+      const pendingEl = $('#dash-pending-audits-count');
+      if (pendingEl) {
+        const pCount = (data.records || []).filter(r => !r.is_revoked && r.audit_status === 'PENDING_AUDIT').length;
+        pendingEl.textContent = pCount;
+      }
+      if (repEl && cachedWallets && cachedWallets.length > 2) {
+        repEl.textContent = cachedWallets[2].reputation || 0;
+      }
     } catch (e) {
       const cols = isUserHome ? 5 : 9;
       tbody.innerHTML = `<tr><td colspan="${cols}" class="table-empty">${e.message}</td></tr>`;
@@ -1292,6 +1294,31 @@
     setupAttestModal();
     setupCreatorIpModal();
 
+    const sess = getSession();
+    const isAuditor = sess?.role === 'auditor';
+
+    if (isAuditor) {
+      // Hide Company-only action cards from independent auditor
+      const uploadCard = $('#card-upload-dataset');
+      const bindModelCard = $('#card-bind-model');
+      if (uploadCard) uploadCard.style.display = 'none';
+      if (bindModelCard) bindModelCard.style.display = 'none';
+
+      // Show Auditor-specific cards
+      const repCard = $('#card-auditor-rep');
+      const auditActionCard = $('#card-auditor-action');
+      if (repCard) repCard.style.display = 'block';
+      if (auditActionCard) auditActionCard.style.display = 'block';
+
+      // Hide Upload Dataset nav link
+      const uploadNav = $('header .nav-links a[href="company-upload.html"]');
+      if (uploadNav) uploadNav.style.display = 'none';
+
+      // Update eyebrow
+      const eyebrow = $('.company-intro .eyebrow');
+      if (eyebrow) eyebrow.innerHTML = '<span class="eyebrow-line"></span>INDEPENDENT AUDITOR DASHBOARD';
+    }
+
     setupLedgerTabs('#company-ledger-tabs', (tabKey) => {
       currentCompanyLedgerTab = tabKey;
       renderCompanyRecordsTable();
@@ -1309,6 +1336,10 @@
     const rootSelect = $('#model-dataset-root-select');
 
     window.openBindModelModal = async function (rootHex) {
+      if (getSession()?.role !== 'company') {
+        showToast('Unauthorized: Only AI Company submitters can bind AI model checkpoints. Auditors cannot bind models.', 'error');
+        return;
+      }
       if (!modelModal) return;
       modelModal.classList.add('open');
       if (rootSelect) {

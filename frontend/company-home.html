@@ -48,17 +48,29 @@
         <p class="dash-meta">Records: <span data-record-count>—</span></p>
         <p class="dash-meta">Contract: <code data-contract-addr>—</code></p>
       </div>
-      <div class="dash-card action-card">
+      <div class="dash-card action-card" id="card-upload-dataset">
         <p class="card-kicker">NEW AUDIT</p>
         <h3>Upload Dataset</h3>
         <p>Hash files, build Merkle tree, and anchor on-chain.</p>
         <a class="button button-primary" href="company-upload.html">Upload Dataset <span>→</span></a>
       </div>
-      <div class="dash-card action-card" style="background:linear-gradient(135deg,rgba(224,242,254,.7),rgba(255,255,255,.9));border-color:rgba(3,105,161,.2);">
+      <div class="dash-card action-card" id="card-bind-model" style="background:linear-gradient(135deg,rgba(224,242,254,.7),rgba(255,255,255,.9));border-color:rgba(3,105,161,.2);">
         <p class="card-kicker" style="color:#0284c7;">AI PROVENANCE</p>
         <h3>Bind Model Checkpoint</h3>
         <p>Cryptographically link trained model weights to an audited Merkle root.</p>
         <button id="open-model-modal-btn" class="button button-primary" type="button" style="background:#0369a1;width:100%;">Bind Model Checkpoint <span>⛓</span></button>
+      </div>
+      <div class="dash-card" id="card-auditor-rep" style="display:none;background:linear-gradient(135deg,rgba(240,253,244,.8),rgba(255,255,255,.9));border-color:rgba(22,101,52,.2);">
+        <p class="card-kicker" style="color:#166534;">REGULATORY STATUS</p>
+        <h3 style="color:#166534;">⚖️ Rep: <span id="dash-auditor-reputation">0</span></h3>
+        <p class="dash-meta">Service Fee: 0.2 ETH / Dataset</p>
+        <p class="dash-meta">Role: Authorized Independent Auditor</p>
+      </div>
+      <div class="dash-card action-card" id="card-auditor-action" style="display:none;background:linear-gradient(135deg,rgba(254,249,195,.7),rgba(255,255,255,.9));border-color:rgba(161,98,7,.2);">
+        <p class="card-kicker" style="color:#a16207;">AUDIT QUEUE</p>
+        <h3 style="color:#854d0e;"><span id="dash-pending-audits-count">0</span> Pending Audits</h3>
+        <p>Inspect ZK manifests and co-sign compliance on-chain.</p>
+        <a class="button button-secondary" href="#company-ledger-tabs" style="width:100%;text-align:center;">Inspect Audit Queue ↓</a>
       </div>
     </div>
 

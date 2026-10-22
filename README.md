@@ -98,16 +98,21 @@ flowchart TD
 
 ---
 
-## 🎭 Multi-Actor Web3 Identity & Personas
+## 🎭 Multi-Actor Web3 Identity & Role Separation
 
 The unified single login portal automatically maps authenticated credentials to role-locked Web3 accounts:
 
 | Persona | Username / Password | Web3 Address | Role & Permissions | Starting ETH |
 | :--- | :--- | :--- | :--- | :--- |
 | **Acme AI Corp** | `acme` / `acme123` | `#1` `0x7099...79C8` | AI Lab / Dataset Submitter & Model Provenance | 10,000.0 ETH |
-| **EU AI Regulator / CertiK** | `certik` / `certik123` | `#2` `0x3C44...93BC` | Authorized Independent Auditor (Earns Fees & Rep) | 10,000.0 ETH |
+| **EU AI Regulator / CertiK** | `certik` / `certik123` | `#2` `0x3C44...93BC` | Independent Compliance Auditor (Attests Datasets & Earns Reputation) | 10,000.0 ETH |
 | **Alice Nakamoto** | `alice` / `alice123` | `#3` `0x90F7...b906` | Independent Creator & Royalty Earner | 10,000.0 ETH |
 | **Protocol DAO** | `admin` / `admin123` | `#0` `0xf39F...2266` | Protocol Deployer, Auditor Licenser & Circuit Breaker | 10,000.0 ETH |
+
+### Strict Multi-Party Boundary Enforcement:
+* **No Company Self-Attestation**: Dataset submitters cannot attest or approve their own datasets; an accredited independent auditor must inspect and co-sign.
+* **No Auditor Model Hijacking**: Independent auditors cannot upload datasets or bind AI model checkpoints. Smart contracts enforce `require(records[recordId].submittedBy == msg.sender)` so only the authentic dataset creator can bind AI models.
+* **Per-Match Direct Royalties**: When an AI company incorporates a creator's registered file, the royalty fee is settled directly per-dataset root on Ethereum. Stale or unanchored roots are strictly filtered out via `rootExists` validation.
 
 ---
 

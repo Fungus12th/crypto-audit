@@ -1033,6 +1033,15 @@ def api_register_model():
     """
     try:
         data = request.get_json() or {}
+
+        # Enforce that only authorized AI Company submitters can bind AI model checkpoints
+        auth_header = request.headers.get("Authorization", "")
+        token = auth_header.replace("Bearer ", "").strip() if auth_header else ""
+        sess = active_sessions.get(token)
+        if sess and sess.get("role") != "company":
+            return jsonify({
+                "error": "Forbidden: Only authorized AI Company submitters can bind AI model checkpoints. Auditors and verifiers cannot bind models."
+            }), 403
         model_hash = (data.get("model_hash") or "").strip().lower()
         if model_hash.startswith("0x"):
             model_hash = model_hash[2:]
@@ -1410,6 +1419,12 @@ def api_get_creator_ip():
             matches = []
             for d_root, d_meta in reg.items():
                 if d_meta.get("is_revoked"):
+                    continue
+                # Ensure dataset root actually exists on the active blockchain
+                try:
+                    if not contract.functions.rootExists(bytes.fromhex(d_root)).call():
+                        continue
+                except Exception:
                     continue
                 leaf_hashes = d_meta.get("leaf_hashes") or []
                 files = d_meta.get("files") or []

@@ -574,6 +574,10 @@ contract AuditRegistry {
         if (modelCheckpointExists[modelWeightsHash])
             revert ModelAlreadyRegistered(modelWeightsHash);
 
+        uint256 recordId = rootToRecordId[datasetRoot];
+        if (records[recordId].submittedBy != msg.sender && msg.sender != owner)
+            revert NotAuthorized();
+
         id = modelCheckpoints.length;
         modelCheckpointExists[modelWeightsHash] = true;
 
